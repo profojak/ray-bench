@@ -2,5 +2,13 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
-  <Project Path="source/inject/inject.vcxproj" Id="e26800c4-049f-4d72-80dc-bae445cc966b" />
+  <Folder Name="/Core/">
+    <Project Path="source/core/util/util.vcxproj" Id="3f538997-485d-48a5-a684-2c557dac9a70" />
+  </Folder>
+  <Folder Name="/Hooks/">
+    <Project Path="source/hooks/winapi/winapi.vcxproj" Id="f9f5cdb0-1c9a-4854-881e-a01acc4f5738" />
+  </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="source/tools/inject/inject.vcxproj" Id="e26800c4-049f-4d72-80dc-bae445cc966b" />
+  </Folder>
 </Solution>
