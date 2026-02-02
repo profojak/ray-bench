@@ -15,8 +15,11 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="util.ixx">
+    <ClCompile Include="log.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="util.ixx">
+      <Filter>Header Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
