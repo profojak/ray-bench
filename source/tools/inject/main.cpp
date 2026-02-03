@@ -1,3 +1,5 @@
+#include "util/log.h"
+
 import RayBench.Util;
 
 int main(int argc, const char** argv) {
@@ -5,6 +7,8 @@ int main(int argc, const char** argv) {
 
     raybench::util::Log::Initialize ();
     raybench::util::Arg args (argc, argv, "", "");
+
+    RAYBENCH_LOG_INFO ("Hello from RayBench!");
 
     raybench::util::Log::Release ();
 

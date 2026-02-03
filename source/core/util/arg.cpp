@@ -1,6 +1,11 @@
+module;
+
+#include "log.h"
+
 export module RayBench.Util:Arg;
 
 import std;
+import :Log;
 
 namespace raybench::util
 {
@@ -71,6 +76,7 @@ public:
                 if (end_index == std::string::npos)
                 {
                     is_invalid_ = true;
+                    RAYBENCH_LOG_CRITICAL ("Unmatched quotes in command line arguments: {}", args);
                     return;
                 }
 
@@ -280,6 +286,7 @@ private:
 
             invalid_values_.emplace_back (curr_arg);
             is_invalid_ = true;
+            RAYBENCH_LOG_CRITICAL ("Invalid command line arguments: {}", curr_arg);
         }
     }
 
