@@ -112,23 +112,6 @@ public:
     /// 
     /// @tparam ...Args Argument types
     /// @param severity Severity level
-    /// @param fmt Format string
-    /// @param ...args Arguments
-    template<typename... Args>
-    static void LogMessage (Severity severity,
-                            std::format_string<Args...> fmt,
-                            Args&&... args)
-    {
-        LogMessageImpl (severity, std::source_location::current (),
-                        std::format (fmt, std::forward<Args> (args)...));
-    }
-
-    // ------------------------------------------------------------------------
-
-    /// @brief Log a message with source location
-    /// 
-    /// @tparam ...Args Argument types
-    /// @param severity Severity level
     /// @param location Source location
     /// @param fmt Format string
     /// @param ...args Arguments
