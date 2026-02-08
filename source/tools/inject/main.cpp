@@ -18,15 +18,7 @@ constexpr const char* options = "-h|--help";
 /// @param path Path to the inject tool executable
 static void PrintHelp (const std::string_view path)
 {
-    std::string_view name = path;
-    if (auto pos = name.find_last_of ("/\\"); pos != std::string_view::npos)
-    {
-        name = name.substr (pos + 1);
-    }
-    if (auto pos = name.find (".exe"); pos != std::string_view::npos)
-    {
-        name = name.substr (0, pos);
-    }
+    const std::string name = std::filesystem::path (path).stem ().string ();
 
     RAYBENCH_WRITE_CONSOLE ("{}: inject tool\n\n"
                             "Usage:\n"

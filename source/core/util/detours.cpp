@@ -25,11 +25,11 @@ namespace raybench::util
 struct ProcessPaths
 {
     ///< Path to the application executable
-    std::string app_path;
+    std::filesystem::path app_path;
     ///< Command line arguments for the application
     std::string arguments;
     ///< Working directory for the application
-    std::string app_directory;
+    std::filesystem::path app_directory;
 };
 
 // ----------------------------------------------------------------------------
@@ -54,9 +54,9 @@ export [[nodiscard]] std::optional<ProcessPaths> GetProcessPaths (std::string_vi
     std::filesystem::path path_view {full_command.substr (0, args_start)};
 
     return ProcessPaths {
-        .app_path = path_view.string (),
+        .app_path = path_view,
         .arguments = std::format ("\"{}\"{}", path_view.string (), full_command.substr (args_start)),
-        .app_directory = path_view.parent_path ().string ()
+        .app_directory = path_view.parent_path ()
     };
 }
 
@@ -72,7 +72,7 @@ export [[nodiscard]] std::optional<ProcessPaths> GetProcessPaths (std::string_vi
 /// @param dlls Array of paths to the dynamic-link libraries
 /// @return True if the process was launched and the libraries were injected
 ///         successfully, false otherwise
-export bool LaunchAndInject (ProcessPaths process_paths,
+export bool LaunchAndInject (ProcessPaths& process_paths,
                              DWORD dlls_count,
                              LPCSTR* dlls)
 {
@@ -80,14 +80,14 @@ export bool LaunchAndInject (ProcessPaths process_paths,
     startup_info.cb = sizeof (startup_info);
     PROCESS_INFORMATION process_info = {};
 
-    bool result = DetourCreateProcessWithDllsA (process_paths.app_path.data (),
+    bool result = DetourCreateProcessWithDllsA (process_paths.app_path.string().data (),
                                                 process_paths.arguments.data (),
                                                 nullptr,
                                                 nullptr,
                                                 TRUE,
                                                 CREATE_SUSPENDED,
                                                 nullptr,
-                                                process_paths.app_directory.data (),
+                                                process_paths.app_directory.string().data (),
                                                 &startup_info,
                                                 &process_info,
                                                 dlls_count,
