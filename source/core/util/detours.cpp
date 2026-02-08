@@ -1,3 +1,10 @@
+// ----------------------------------------------------------------------------
+
+/// @brief Microsoft Detours hooking library wrapper
+/// 
+/// https://github.com/microsoft/Detours/wiki/Using-Detours
+/// https://github.com/microsoft/Detours/wiki/Reference
+
 module;
 
 #define WIN32_LEAN_AND_MEAN
@@ -10,7 +17,7 @@ export module RayBench.Util:Detours;
 namespace raybench::util
 {
 
-//-----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 /// @brief Initialize Detours library
 /// 
@@ -26,7 +33,7 @@ static void InitializeDetours ()
         }();
 }
 
-//-----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 /// @brief Hook an API call using Detours
 /// 
@@ -51,7 +58,7 @@ export bool WINAPI HookAPICall (PVOID* real_fn, PVOID hook_fn)
     return error == NO_ERROR;
 }
 
-//-----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 /// @brief Unhook an API call using Detours
 /// 
@@ -64,6 +71,7 @@ export bool WINAPI UnhookAPICall (PVOID* real_fn, PVOID hook_fn)
 
     DetourTransactionBegin ();
     DetourUpdateThread (GetCurrentThread ());
+
     LONG error = DetourDetach (real_fn, hook_fn);
     if (error != NO_ERROR)
     {
@@ -76,3 +84,5 @@ export bool WINAPI UnhookAPICall (PVOID* real_fn, PVOID hook_fn)
 }
 
 }
+
+// ----------------------------------------------------------------------------

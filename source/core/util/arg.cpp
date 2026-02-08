@@ -1,3 +1,7 @@
+// ----------------------------------------------------------------------------
+
+/// @brief Command line arguments parser
+
 module;
 
 #include "log.h"
@@ -49,7 +53,8 @@ public:
 
     /// @brief Parse command line arguments from a string of arguments
     /// 
-    /// @param first_is_exe_name Whether the first argument is the executable name
+    /// @param first_is_exe_name Whether the first argument is the executable
+    ///        name
     /// @param args Command line arguments as a raw string
     /// @param options Supported options
     /// @param arguments Supported arguments
@@ -312,3 +317,5 @@ private:
 };
 
 }
+
+// ----------------------------------------------------------------------------

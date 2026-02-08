@@ -1,3 +1,7 @@
+// ----------------------------------------------------------------------------
+
+/// @brief Entry point of dynamic-link library for Windows API hooks
+
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
@@ -23,3 +27,5 @@ BOOL APIENTRY DllMain (HMODULE /*hModule*/,
     }
     return TRUE;
 }
+
+// ----------------------------------------------------------------------------

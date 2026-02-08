@@ -1,3 +1,8 @@
+// ----------------------------------------------------------------------------
+
+/// @brief Entry point for injecting dynamic-link libraries into target
+///        application
+
 #include "util/log.h"
 
 import std;
@@ -55,3 +60,5 @@ int main (int argc, const char** argv)
 
     return 0;
 }
+
+// ----------------------------------------------------------------------------
