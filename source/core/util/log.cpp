@@ -184,16 +184,11 @@ public:
     {
         auto IsSame = [] (std::string_view a, std::string_view b)
             {
-                if (a.size () != b.size ())
-                {
-                    return false;
-                }
-
-                return std::equal (a.begin (), a.end (), b.begin (),
-                                   [] (unsigned char ca, unsigned char cb)
-                                   {
-                                       return std::tolower (ca) == std::tolower (cb);
-                                   });
+                return std::ranges::equal (a, b,
+                                           [] (char c1, char c2)
+                                           {
+                                               return std::tolower (c1) == std::tolower (c2);
+                                           });
             };
 
         if (IsSame (str, "debug"))
