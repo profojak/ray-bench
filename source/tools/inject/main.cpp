@@ -49,6 +49,7 @@ int main (int argc, const char** argv)
         return 1;
     }
 
+    // Get the process paths matching the specified target
     auto process_paths = raybench::util::GetProcessPaths (args.GetPositionalArguments ().front ());
     if (process_paths.has_value() == false)
     {
@@ -58,7 +59,15 @@ int main (int argc, const char** argv)
         return 1;
     }
 
-    raybench::util::LaunchAndInject (process_paths.value(), 0, nullptr);
+    // Ensure the required dynamic-link library exists before attempting injection
+    std::filesystem::path dll_path = std::filesystem::path (argv[0]).parent_path () / "ray-bench-winapi.dll";
+    if (std::filesystem::exists (dll_path) == false)
+    {
+        RAYBENCH_LOG_ERROR ("Required dynamic-link library not found: {}", dll_path.string ());
+        return 1;
+    }
+
+    raybench::util::LaunchAndInject (process_paths.value(), dll_path.string ().c_str());
 
     raybench::util::Log::Release ();
     return 0;

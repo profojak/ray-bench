@@ -66,33 +66,25 @@ export [[nodiscard]] std::optional<ProcessPaths> GetProcessPaths (std::string_vi
 ///        Detours
 /// 
 /// @param process_paths Paths related to the process to launch and inject into
-/// @param startup_info Startup information for the application
-/// @param process_info Process information for the application
-/// @param dlls_count Number of dynamic-link libraries to inject
-/// @param dlls Array of paths to the dynamic-link libraries
-/// @return True if the process was launched and the libraries were injected
-///         successfully, false otherwise
-export bool LaunchAndInject (ProcessPaths& process_paths,
-                             DWORD dlls_count,
-                             LPCSTR* dlls)
+/// @param dll Path to the dynamic-link library to inject
+export bool LaunchAndInject (ProcessPaths& process_paths, LPCSTR dll)
 {
     STARTUPINFOA startup_info = {};
     startup_info.cb = sizeof (startup_info);
     PROCESS_INFORMATION process_info = {};
 
-    bool result = DetourCreateProcessWithDllsA (process_paths.app_path.string().data (),
-                                                process_paths.arguments.data (),
-                                                nullptr,
-                                                nullptr,
-                                                TRUE,
-                                                CREATE_SUSPENDED,
-                                                nullptr,
-                                                process_paths.app_directory.string().data (),
-                                                &startup_info,
-                                                &process_info,
-                                                dlls_count,
-                                                dlls,
-                                                nullptr);
+    bool result = DetourCreateProcessWithDllExA (process_paths.app_path.string ().c_str (),
+                                                 process_paths.arguments.data (),
+                                                 nullptr,
+                                                 nullptr,
+                                                 TRUE,
+                                                 CREATE_SUSPENDED,
+                                                 nullptr,
+                                                 process_paths.app_directory.string ().c_str (),
+                                                 &startup_info,
+                                                 &process_info,
+                                                 dll,
+                                                 nullptr);
 
     if (result == false)
     {
