@@ -27,6 +27,9 @@
     <ClCompile Include="arg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="inject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="log.h">

@@ -38,7 +38,11 @@ static void PrintHelp (const std::string_view path)
 /// @return Return code
 int main (int argc, const char** argv)
 {
-    raybench::util::Log::Initialize ();
+    raybench::util::Log::Settings log_settings {
+        .min_severity = raybench::util::Log::Severity::trace,
+    };
+
+    raybench::util::Log::Initialize (log_settings);
     raybench::util::Arg args (argc, argv, options, "");
 
     if (args.IsInvalid () || args.GetPositionalArguments ().size () == 0 ||
@@ -50,8 +54,8 @@ int main (int argc, const char** argv)
     }
 
     // Get the process paths matching the specified target
-    auto process_paths = raybench::util::GetProcessPaths (args.GetPositionalArguments ().front ());
-    if (process_paths.has_value() == false)
+    auto create_process_info = raybench::util::GetCreateProcessInfo (args.GetPositionalArguments ().front ());
+    if (create_process_info.has_value() == false)
     {
         RAYBENCH_LOG_ERROR ("No process found matching the specified target: {}",
                             args.GetPositionalArguments ().front ());
@@ -67,7 +71,7 @@ int main (int argc, const char** argv)
         return 1;
     }
 
-    raybench::util::LaunchAndInject (process_paths.value(), dll_path.string ().c_str());
+    raybench::util::LaunchInject (create_process_info.value(), dll_path.string ().c_str());
 
     raybench::util::Log::Release ();
     return 0;
