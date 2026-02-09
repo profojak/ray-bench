@@ -23,7 +23,8 @@ public:
     /// @brief Severity levels for logging
     enum class Severity : std::uint32_t
     {
-        debug = 0,
+        trace = 0,
+        debug,
         info,
         warning,
         error,

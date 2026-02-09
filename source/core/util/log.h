@@ -7,6 +7,22 @@
 
 #include <source_location>
 
+#ifdef NDEBUG
+
+/// @brief Log a trace message
+#define RAYBENCH_LOG_TRACE(message, ...) \
+    ((void)0);
+
+#else
+
+/// @brief Log a trace message
+#define RAYBENCH_LOG_TRACE(message, ...) \
+    raybench::util::Log::LogMessage (raybench::util::Log::Severity::trace, \
+                                         std::source_location::current (), \
+                                         message, ##__VA_ARGS__);
+
+#endif
+
 /// @brief Log a debug message
 #define RAYBENCH_LOG_DEBUG(message, ...) \
     raybench::util::Log::LogMessage (raybench::util::Log::Severity::debug, \
@@ -54,6 +70,10 @@
             logged_once = true; \
         } \
     }
+
+/// @brief Log a trace message only once
+#define RAYBENCH_LOG_TRACE_ONCE(message, ...) \
+    RAYBENCH_LOG_ONCE( RAYBENCH_LOG_TRACE (message, ##__VA_ARGS__) )
 
 /// @brief Log a debug message only once
 #define RAYBENCH_LOG_DEBUG_ONCE(message, ...) \
