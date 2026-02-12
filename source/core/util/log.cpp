@@ -8,6 +8,8 @@ module;
 #define NOMINMAX
 #include <Windows.h>
 
+#include "log.h"
+
 export module RayBench.Util:Log;
 
 import std;
@@ -63,6 +65,8 @@ public:
         bool output_errors_to_stderr {true};
         ///< Output messages to OutputDebugString
         bool output_to_debug_string {false};
+        ///< Listen via a named pipe for inter process communication
+        bool listen_to_named_pipe {false};
     };
 
     // ------------------------------------------------------------------------
@@ -91,6 +95,11 @@ public:
                 }
             }
         }
+
+        if (settings.listen_to_named_pipe)
+        {
+            log_thread_handle_ = CreateThread (nullptr, 0, LogThreadProc, nullptr, 0, nullptr);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -104,6 +113,45 @@ public:
         {
             log_file_.close ();
             settings_.write_to_file = false;
+        }
+
+        if (settings_.listen_to_named_pipe && log_thread_handle_ != INVALID_HANDLE_VALUE)
+        {
+            WaitForSingleObject (log_thread_handle_, INFINITE);
+            CloseHandle (log_thread_handle_);
+            log_thread_handle_ = INVALID_HANDLE_VALUE;
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    /// @brief Connect to the named pipe for inter process communication
+    /// 
+    /// Call this function in a client process to connect to the named pipe
+    /// created by the log thread of the main process.
+    static void ClientConnect ()
+    {
+        if (WaitNamedPipeA (named_pipe_name_, NMPWAIT_WAIT_FOREVER))
+        {
+            named_pipe_handle_ = CreateFileA (named_pipe_name_,
+                                              GENERIC_WRITE,
+                                              0, nullptr, OPEN_EXISTING, 0, nullptr);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    /// @brief Disconnect from the named pipe
+    /// 
+    /// Call this function in a client process to disconnect from the named
+    /// pipe created by the log thread of the main process.
+    static void ClientDisconnect ()
+    {
+        if (named_pipe_handle_ != INVALID_HANDLE_VALUE)
+        {
+            DisconnectNamedPipe (named_pipe_handle_);
+            CloseHandle (named_pipe_handle_);
+            named_pipe_handle_ = INVALID_HANDLE_VALUE;
         }
     }
 
@@ -341,12 +389,54 @@ private:
 
     // ------------------------------------------------------------------------
 
+    /// @brief Thread procedure for listening to the named pipe
+    static DWORD WINAPI LogThreadProc (LPVOID /*lpParam*/)
+    {
+        named_pipe_handle_ = CreateNamedPipeA (named_pipe_name_,
+                                               PIPE_ACCESS_INBOUND,
+                                               PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+                                               PIPE_UNLIMITED_INSTANCES,
+                                               4096, 4096, 0, nullptr);
+        if (named_pipe_handle_ == INVALID_HANDLE_VALUE)
+        {
+            RAYBENCH_LOG_CRITICAL ("Failed to create named pipe: {}", GetLastError ());
+            return 1;
+        }
+
+        RAYBENCH_LOG_DEBUG ("Named pipe created successfully, waiting for connection...");
+
+        bool connected = ConnectNamedPipe (named_pipe_handle_, nullptr) ||
+            GetLastError () == ERROR_PIPE_CONNECTED;
+        if (connected == false)
+        {
+            RAYBENCH_LOG_CRITICAL ("Failed to connect to named pipe: {}", GetLastError ());
+            CloseHandle (named_pipe_handle_);
+            return 1;
+        }
+
+        RAYBENCH_LOG_INFO ("Named pipe connected successfully");
+
+        DisconnectNamedPipe (named_pipe_handle_);
+        CloseHandle (named_pipe_handle_);
+        named_pipe_handle_ = INVALID_HANDLE_VALUE;
+        return 0;
+    }
+
+    // ------------------------------------------------------------------------
+
     ///< Logger settings
     inline static Settings settings_;
     ///< Log file
     inline static std::ofstream log_file_;
     ///< Mutex for thread-safe logging
     inline static std::mutex log_mutex_;
+
+    ///< Name of the named pipe for inter process communication
+    static constexpr LPCSTR named_pipe_name_ = R"(\\.\pipe\ray-bench-log)";
+    ///< Handle for the named pipe
+    inline static HANDLE named_pipe_handle_ = INVALID_HANDLE_VALUE;
+    ///< Handle for the log thread that listens to the named pipe
+    inline static HANDLE log_thread_handle_ = INVALID_HANDLE_VALUE;
 };
 
 }

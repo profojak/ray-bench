@@ -40,6 +40,7 @@ int main (int argc, const char** argv)
 {
     raybench::util::Log::Settings log_settings {
         .min_severity = raybench::util::Log::Severity::trace,
+        .listen_to_named_pipe = true,
     };
 
     raybench::util::Log::Initialize (log_settings);
