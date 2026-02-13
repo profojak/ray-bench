@@ -23,13 +23,16 @@ BOOL APIENTRY DllMain (HMODULE /*hModule*/,
     {
         case DLL_PROCESS_ATTACH:
         case DLL_THREAD_ATTACH:
+        {
             raybench::util::Log::ClientConnect ();
             RAYBENCH_LOG_DEBUG ("DLL attached to process/thread");
-            break;
+        }
         case DLL_PROCESS_DETACH:
         case DLL_THREAD_DETACH:
+        {
             raybench::util::Log::ClientDisconnect ();
-            break;
+        }
+        break;
     }
     return TRUE;
 }

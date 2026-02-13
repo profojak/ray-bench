@@ -135,12 +135,16 @@ public:
     /// created by the log thread of the main process.
     static void ClientConnect ()
     {
-        if (WaitNamedPipeA (named_pipe_name_, NMPWAIT_WAIT_FOREVER))
-        {
-            named_pipe_handle_ = CreateFileA (named_pipe_name_,
-                                              GENERIC_WRITE,
-                                              0, nullptr, OPEN_EXISTING, 0, nullptr);
-        }
+        static std::once_flag connection_flag;
+        std::call_once (connection_flag, [] ()
+                        {
+                            if (WaitNamedPipeA (named_pipe_name_, NMPWAIT_WAIT_FOREVER))
+                            {
+                                named_pipe_handle_ = CreateFileA (named_pipe_name_,
+                                                                  GENERIC_WRITE,
+                                                                  0, nullptr, OPEN_EXISTING, 0, nullptr);
+                            }
+                        });
     }
 
     // ------------------------------------------------------------------------
