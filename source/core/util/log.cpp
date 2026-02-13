@@ -100,6 +100,8 @@ public:
         {
             log_thread_handle_ = CreateThread (nullptr, 0, LogThreadProc, nullptr, 0, nullptr);
         }
+
+        initialized_ = true;
     }
 
     // ------------------------------------------------------------------------
@@ -121,6 +123,8 @@ public:
             CloseHandle (log_thread_handle_);
             log_thread_handle_ = INVALID_HANDLE_VALUE;
         }
+
+        initialized_ = false;
     }
 
     // ------------------------------------------------------------------------
@@ -170,8 +174,29 @@ public:
                             std::format_string<Args...> fmt,
                             Args&&... args)
     {
-        LogMessageImpl (severity, location,
-                        std::format (fmt, std::forward<Args> (args)...));
+        const std::string formatted_message = std::format (fmt, std::forward<Args> (args)...);
+        if (initialized_ == true)
+        {
+            LogMessageImpl (severity,
+                            location.file_name (),
+                            location.line (),
+                            location.column (),
+                            location.function_name (),
+                            formatted_message);
+        }
+        else
+        {
+            const std::string output = std::format ("{}|{}|{}|{}|{}|{}",
+                                                    SeverityToString (severity),
+                                                    location.file_name (),
+                                                    location.line (),
+                                                    location.column (),
+                                                    location.function_name (),
+                                                    formatted_message);
+            DWORD bytes_written = 0;
+            WriteFile (named_pipe_handle_, output.data (),
+                       static_cast<DWORD> (output.size ()), &bytes_written, nullptr);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -271,11 +296,18 @@ private:
     // ------------------------------------------------------------------------
 
     /// @brief Log a message implementation
+    /// 
     /// @param severity Severity level
-    /// @param location Source location
-    /// @param message Log message
+    /// @param file_name Source file name
+    /// @param line Source line number
+    /// @param column Source column number
+    /// @param function_name Source function name
+    /// @param message Formatted log message
     static void LogMessageImpl (Severity severity,
-                                const std::source_location& location,
+                                std::string_view file_name,
+                                std::uint_least32_t line,
+                                std::uint_least32_t column,
+                                std::string_view function_name,
                                 std::string_view message)
     {
         constexpr std::string_view process_tag = "ray-bench";
@@ -299,20 +331,19 @@ private:
 
             if (settings_.output_detailed_log_info)
             {
-                std::string_view full_path = location.file_name ();
-                std::string_view relative_path = full_path;
+                std::string_view relative_path = file_name;
 
-                if (auto pos = full_path.find ("source\\");
+                if (auto pos = file_name.find ("source\\");
                     pos != std::string_view::npos)
                 {
-                    relative_path = full_path.substr (pos + 7);
+                    relative_path = file_name.substr (pos + 7);
                 }
 
                 prefix += std::format (" [{}({},{}): {}]",
                                        relative_path,
-                                       location.line (),
-                                       location.column (),
-                                       location.function_name ());
+                                       line,
+                                       column,
+                                       function_name);
             }
 
             prefix += " ";
@@ -396,7 +427,10 @@ private:
                                                PIPE_ACCESS_INBOUND,
                                                PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
                                                PIPE_UNLIMITED_INSTANCES,
-                                               4096, 4096, 0, nullptr);
+                                               named_pipe_buffer_size_,
+                                               named_pipe_buffer_size_,
+                                               0,
+                                               nullptr);
         if (named_pipe_handle_ == INVALID_HANDLE_VALUE)
         {
             RAYBENCH_LOG_CRITICAL ("Failed to create named pipe: {}", GetLastError ());
@@ -416,6 +450,63 @@ private:
 
         RAYBENCH_LOG_INFO ("Named pipe connected successfully");
 
+        std::array<CHAR, named_pipe_buffer_size_> buffer {};
+        DWORD bytes_read = 0;
+        while (true)
+        {
+            bool result = ReadFile (named_pipe_handle_, buffer.data (),
+                                    static_cast<DWORD> (buffer.size ()), &bytes_read, nullptr);
+            if (result == true && bytes_read > 0)
+            {
+                std::string_view message (buffer.data (), bytes_read);
+                std::vector<std::string_view> parts;
+                auto parsed = std::views::split (message, '|') |
+                    std::views::transform ([] (auto&& part)
+                                           {
+                                               return std::string_view (&*part.begin (),
+                                                                        std::ranges::distance (part));
+                                           });
+                std::ranges::copy (parsed, std::back_inserter (parts));
+
+                Severity severity = Severity::info;
+                if (auto severity_result = StringToSeverity (parts[0]); severity_result.has_value ())
+                {
+                    severity = severity_result.value ();
+                }
+                std::uint_least32_t line;
+                if (auto line_result = std::from_chars (parts[2].data (),
+                                                        parts[2].data () + parts[2].size (),
+                                                        line);
+                    line_result.ec != std::errc ())
+                {
+                    line = 0;
+                }
+                std::uint_least32_t column;
+                if (auto column_result = std::from_chars (parts[3].data (),
+                                                          parts[3].data () + parts[3].size (),
+                                                          column);
+                    column_result.ec != std::errc ())
+                {
+                    column = 0;
+                }
+
+                LogMessageImpl (severity, parts[1], line, column, parts[4], parts[5]);
+            }
+            else if (result == false)
+            {
+                DWORD error = GetLastError ();
+                if (error == ERROR_BROKEN_PIPE)
+                {
+                    RAYBENCH_LOG_INFO ("Named pipe client disconnected");
+                }
+                else
+                {
+                    RAYBENCH_LOG_ERROR ("Failed to read from named pipe: {}", error);
+                }
+                break;
+            }
+        }
+
         DisconnectNamedPipe (named_pipe_handle_);
         CloseHandle (named_pipe_handle_);
         named_pipe_handle_ = INVALID_HANDLE_VALUE;
@@ -426,6 +517,8 @@ private:
 
     ///< Logger settings
     inline static Settings settings_;
+    ///< Flag to indicate if logging has been initialized
+    inline static bool initialized_ = false;
     ///< Log file
     inline static std::ofstream log_file_;
     ///< Mutex for thread-safe logging
@@ -433,6 +526,8 @@ private:
 
     ///< Name of the named pipe for inter process communication
     static constexpr LPCSTR named_pipe_name_ = R"(\\.\pipe\ray-bench-log)";
+    ///< Buffer size for reading from the named pipe
+    static constexpr DWORD named_pipe_buffer_size_ = 4096;
     ///< Handle for the named pipe
     inline static HANDLE named_pipe_handle_ = INVALID_HANDLE_VALUE;
     ///< Handle for the log thread that listens to the named pipe
