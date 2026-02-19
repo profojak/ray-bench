@@ -22,7 +22,9 @@ namespace raybench::util::EnvVar
 constexpr size_t max_env_var_length = 8192;
 
 ///< Environment variable name for log settings
-export constexpr std::string_view log_settings = "RAY_BENCH_LOG_SETTINGS";
+export constexpr std::string_view log_settings = "RAYBENCH_LOG_SETTINGS";
+///< Environment variable name for WinAPI dynamic-link library path
+export constexpr std::string_view winapi_dll_path = "RAYBENCH_WINAPI_DLL_PATH";
 
 // ----------------------------------------------------------------------------
 

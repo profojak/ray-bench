@@ -81,6 +81,10 @@ int main (int argc, const char** argv)
 
     RAYBENCH_LOG_DEBUG ("Required dynamic-link library found for injection: {}",
                         dll_path.string ());
+    RAYBENCH_LOG_TRACE ("Setting environment variable for required dynamic-link library path...");
+
+    raybench::util::EnvVar::Set (raybench::util::EnvVar::winapi_dll_path, dll_path.string ());
+
     RAYBENCH_LOG_TRACE ("Setting environment variable for logging settings...");
 
     raybench::util::EnvVar::Set (raybench::util::EnvVar::log_settings,
