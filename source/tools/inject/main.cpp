@@ -46,6 +46,9 @@ int main (int argc, const char** argv)
     raybench::util::Log::Initialize (log_settings);
     raybench::util::Arg args (argc, argv, options, "");
 
+    RAYBENCH_LOG_INFO ("Started inject tool");
+    RAYBENCH_LOG_TRACE ("Parsing command line arguments...");
+
     if (args.IsInvalid () || args.GetPositionalArguments ().size () == 0 ||
         args.IsOptionSet ("--help") || args.IsOptionSet ("-h"))
     {
@@ -58,24 +61,34 @@ int main (int argc, const char** argv)
     auto create_process_info = raybench::util::GetCreateProcessInfo (args.GetPositionalArguments ().front ());
     if (create_process_info.has_value () == false)
     {
-        RAYBENCH_LOG_ERROR ("No process found matching the specified target: {}",
-                            args.GetPositionalArguments ().front ());
+        RAYBENCH_LOG_CRITICAL ("Failed to get process information for target: {}",
+                               args.GetPositionalArguments ().front ());
         raybench::util::Log::Release ();
         return 1;
     }
+
+    RAYBENCH_LOG_DEBUG ("Process information obtained successfully for target: {}",
+                        args.GetPositionalArguments ().front ());
 
     // Ensure the required dynamic-link library exists before attempting injection
     std::filesystem::path dll_path = std::filesystem::path (argv[0]).parent_path () / "ray-bench-winapi.dll";
     if (std::filesystem::exists (dll_path) == false)
     {
-        RAYBENCH_LOG_ERROR ("Required dynamic-link library not found: {}", dll_path.string ());
+        RAYBENCH_LOG_CRITICAL ("Required dynamic-link library not found for injection: {}",
+                               dll_path.string ());
         return 1;
     }
+
+    RAYBENCH_LOG_DEBUG ("Required dynamic-link library found for injection: {}",
+                        dll_path.string ());
+    RAYBENCH_LOG_TRACE ("Setting environment variable for logging settings...");
 
     raybench::util::EnvVar::Set (raybench::util::EnvVar::log_settings,
                                  raybench::util::Log::GetSettings ().Serialize ());
 
     raybench::util::LaunchInject (create_process_info.value (), dll_path.string ().c_str ());
+
+    RAYBENCH_LOG_INFO ("Launched target with injected dynamic-link library");
 
     raybench::util::Log::Release ();
     return 0;

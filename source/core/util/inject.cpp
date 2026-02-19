@@ -63,12 +63,18 @@ export [[nodiscard]] std::optional<CreateProcessInfo> GetCreateProcessInfo (std:
 
 // ----------------------------------------------------------------------------
 
+/// @brief Inject a dynamic-link library into the target process
+/// 
+/// @param process_handle Handle to the target process to inject into
+/// @param dll Path to the dynamic-link library to inject
+/// @return True if the injection was successful, false otherwise
 bool InjectDLL (HANDLE process_handle, LPCSTR dll)
 {
     size_t size_of_memory = (strlen (dll) + 1) * sizeof (char);
     if (size_of_memory == 0)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to calculate size of memory to allocate for DLL path: {}", GetLastError ());
+        RAYBENCH_LOG_CRITICAL ("Failed to calculate size of memory to allocate for dynamic-link library path: {}",
+                               GetLastError ());
         return false;
     }
 
@@ -79,19 +85,21 @@ bool InjectDLL (HANDLE process_handle, LPCSTR dll)
                                             PAGE_EXECUTE_READWRITE);
     if (target_memory_address == nullptr)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to allocate memory in process: {}", GetLastError ());
+        RAYBENCH_LOG_CRITICAL ("Failed to allocate memory in target: {}",
+                               GetLastError ());
         return false;
     }
 
     size_t bytes_written = 0;
-    bool result = WriteProcessMemory(process_handle,
-                                     target_memory_address,
-                                     dll,
-                                     size_of_memory,
-                                     &bytes_written);
+    bool result = WriteProcessMemory (process_handle,
+                                      target_memory_address,
+                                      dll,
+                                      size_of_memory,
+                                      &bytes_written);
     if (result == false || bytes_written != size_of_memory)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to write DLL path to process memory: {}", GetLastError ());
+        RAYBENCH_LOG_CRITICAL ("Failed to write dynamic-link path to target process memory: {}",
+                               GetLastError ());
         return false;
     }
 
@@ -100,19 +108,27 @@ bool InjectDLL (HANDLE process_handle, LPCSTR dll)
 
 // ----------------------------------------------------------------------------
 
+/// @brief Create a remote thread in the target process to load the injected
+///        dynamic-link library
+/// @param process_handle Handle to the target process to create the remote
+///                       thread in
+/// @return True if the remote thread was successfully created and executed,
+///         false otherwise
 bool LoadDLL (HANDLE process_handle)
 {
     HMODULE handle = GetModuleHandleA ("kernel32.dll");
     if (handle == nullptr)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to get handle for kernel32.dll: {}", GetLastError ());
+        RAYBENCH_LOG_CRITICAL ("Failed to get handle for kernel32.dll: {}",
+                               GetLastError ());
         return false;
     }
 
     FARPROC load_library_address = GetProcAddress (handle, "LoadLibraryA");
     if (load_library_address == nullptr)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to get address for LoadLibraryA: {}", GetLastError ());
+        RAYBENCH_LOG_CRITICAL ("Failed to get address for 'LoadLibraryA': {}",
+                               GetLastError ());
         return false;
     }
 
@@ -126,7 +142,8 @@ bool LoadDLL (HANDLE process_handle)
                                                &thread_id);
     if (thread_handle == nullptr)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to create remote thread in process: {}", GetLastError ());
+        RAYBENCH_LOG_CRITICAL ("Failed to create remote thread in target: {}",
+                               GetLastError ());
         return false;
     }
 
@@ -136,13 +153,14 @@ bool LoadDLL (HANDLE process_handle)
     bool result = GetExitCodeThread (thread_handle, &exit_code);
     if (result == false)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to get exit code of remote thread: {}", GetLastError ());
+        RAYBENCH_LOG_CRITICAL ("Failed to get exit code of remote thread in target: {}",
+                               GetLastError ());
         return false;
     }
 
     if (exit_code == 0)
     {
-        RAYBENCH_LOG_CRITICAL ("Remote thread failed to load DLL into process");
+        RAYBENCH_LOG_CRITICAL ("Remote thread failed to load dynamic-link library into target");
         return false;
     }
 
@@ -152,19 +170,33 @@ bool LoadDLL (HANDLE process_handle)
 
 // ----------------------------------------------------------------------------
 
+/// @brief Inject a dynamic-link library into the target process and create
+///        a remote thread to load it
+/// @param process_handle Handle to the target process to inject into and
+///                       create the remote thread in
+/// @param dll Path to the dynamic-link library to inject and load into the
+///            target
+/// @return True if the dynamic-link library was successfully injected and
+///         loaded into
 bool InjectLoadDLL (HANDLE process_handle, LPCSTR dll)
 {
+    RAYBENCH_LOG_TRACE ("Injecting dynamic-link library into target...");
+
     bool result = InjectDLL (process_handle, dll);
     if (result == false)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to inject DLL into process: {}", GetLastError ());
+        RAYBENCH_LOG_CRITICAL ("Failed to inject dynamic-link library into target: {}",
+                               GetLastError ());
         return false;
     }
+
+    RAYBENCH_LOG_TRACE ("Loading dynamic-link library into target...");
 
     result = LoadDLL (process_handle);
     if (result == false)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to load DLL into process: {}", GetLastError ());
+        RAYBENCH_LOG_CRITICAL ("Failed to load dynamic-link library into process: {}",
+                               GetLastError ());
         return false;
     }
 
@@ -197,12 +229,25 @@ export bool LaunchInject (CreateProcessInfo& create_process_info, LPCSTR dll)
                                   &process_info);
     if (result == false)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to launch process: {}", GetLastError ());
+        RAYBENCH_LOG_CRITICAL ("Failed to launch suspended target: {}",
+                               GetLastError ());
         return false;
     }
 
-    result = InjectLoadDLL (process_info.hProcess, dll);
+    RAYBENCH_LOG_DEBUG ("Launched suspended target: process ID {}", process_info.dwProcessId);
+
+    if (InjectLoadDLL (process_info.hProcess, dll) == false)
+    {
+        RAYBENCH_LOG_CRITICAL ("Failed to inject and load dynamic-link library into target: {}",
+                               GetLastError ());
+        TerminateProcess (process_info.hProcess, 1);
+        CloseHandle (process_info.hThread);
+        CloseHandle (process_info.hProcess);
+        return false;
+    }
     ResumeThread (process_info.hThread);
+
+    RAYBENCH_LOG_DEBUG ("Injected and loaded dynamic-link library into target and resumed: process ID {}", process_info.dwProcessId);
 
     return result;
 }

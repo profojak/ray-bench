@@ -56,12 +56,12 @@ export [[nodiscard]] std::optional<std::string> Get (std::string_view name) noex
         }
         else
         {
-            RAYBENCH_LOG_DEBUG ("Environment variable '{}' not found", name);
+            RAYBENCH_LOG_DEBUG ("Not found environment variable '{}'", name);
         }
     }
     else if (result >= buffer.size ())
     {
-        RAYBENCH_LOG_ERROR ("Environment variable '{}' value is too long ({} characters)", name, result);
+        RAYBENCH_LOG_ERROR ("Too long environment variable '{}': required size {}", name, result);
     }
     else
     {

@@ -30,11 +30,12 @@ BOOL APIENTRY DllMain (HMODULE /*hModule*/,
                 raybench::util::Log::GetSettings ().Deserialize (log_settings.value ());
             }
             raybench::util::Log::ClientConnect ();
-            RAYBENCH_LOG_DEBUG ("DLL attached to process/thread");
+            RAYBENCH_LOG_INFO ("Loaded Windows API hooks dynamic-link library");
         }
         case DLL_PROCESS_DETACH:
         case DLL_THREAD_DETACH:
         {
+            RAYBENCH_LOG_TRACE ("Unloading Windows API hooks dynamic-link library...");
             raybench::util::Log::ClientDisconnect ();
         }
         break;

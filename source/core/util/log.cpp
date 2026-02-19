@@ -536,18 +536,20 @@ private:
             return 1;
         }
 
-        RAYBENCH_LOG_DEBUG ("Named pipe created successfully, waiting for connection...");
+        RAYBENCH_LOG_DEBUG ("Created named pipe");
+        RAYBENCH_LOG_TRACE ("Waiting for named pipe client to connect...");
 
         bool connected = ConnectNamedPipe (named_pipe_handle_, nullptr) ||
             GetLastError () == ERROR_PIPE_CONNECTED;
         if (connected == false)
         {
-            RAYBENCH_LOG_CRITICAL ("Failed to connect to named pipe: {}", GetLastError ());
+            RAYBENCH_LOG_CRITICAL ("Failed to connect named pipe to client: {}", GetLastError ());
             CloseHandle (named_pipe_handle_);
             return 1;
         }
 
-        RAYBENCH_LOG_INFO ("Named pipe connected successfully");
+        RAYBENCH_LOG_INFO ("Client connected to named pipe");
+        RAYBENCH_LOG_TRACE ("Starting to read from named pipe...");
 
         std::array<CHAR, named_pipe_buffer_size_> buffer {};
         DWORD bytes_read = 0;
@@ -565,7 +567,7 @@ private:
                 DWORD error = GetLastError ();
                 if (error == ERROR_BROKEN_PIPE)
                 {
-                    RAYBENCH_LOG_INFO ("Named pipe client disconnected");
+                    RAYBENCH_LOG_INFO ("Client disconnected from named pipe");
                 }
                 else
                 {
@@ -574,6 +576,8 @@ private:
                 break;
             }
         }
+
+        RAYBENCH_LOG_TRACE ("Stopping log thread, disconnecting and closing named pipe...");
 
         DisconnectNamedPipe (named_pipe_handle_);
         CloseHandle (named_pipe_handle_);
