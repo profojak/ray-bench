@@ -206,27 +206,28 @@ bool InjectLoadDLL (HANDLE process_handle, LPCSTR dll)
 // ----------------------------------------------------------------------------
 
 /// @brief Launch a process and inject dynamic-link library into it
-/// 
-/// @param create_process_info Information related to the target process
-///                            to launch and inject into
-/// @param dll Path to the dynamic-link library to inject
-export bool LaunchInject (CreateProcessInfo& create_process_info, LPCSTR dll)
+export BOOL LaunchInjectA (LPCSTR lpApplicationName,
+                           LPSTR lpCommandLine,
+                           LPSECURITY_ATTRIBUTES lpProcessAttributes,
+                           LPSECURITY_ATTRIBUTES lpThreadAttributes,
+                           BOOL bInheritHandles,
+                           DWORD dwCreationFlags,
+                           LPVOID lpEnvironment,
+                           LPCSTR lpCurrentDirectory,
+                           LPSTARTUPINFOA lpStartupInfo,
+                           LPPROCESS_INFORMATION lpProcessInformation,
+                           LPCSTR dll)
 {
-    DWORD flags = CREATE_SUSPENDED;
-    STARTUPINFOA startup_info {};
-    startup_info.cb = sizeof (startup_info);
-    PROCESS_INFORMATION process_info {};
-
-    bool result = CreateProcessA (create_process_info.app_path.string ().c_str (),
-                                  create_process_info.arguments.data (),
-                                  nullptr,
-                                  nullptr,
-                                  FALSE,
-                                  flags,
-                                  nullptr,
-                                  create_process_info.app_directory.string ().c_str (),
-                                  &startup_info,
-                                  &process_info);
+    BOOL result = CreateProcessA (lpApplicationName,
+                                  lpCommandLine,
+                                  lpProcessAttributes,
+                                  lpThreadAttributes,
+                                  bInheritHandles,
+                                  dwCreationFlags,
+                                  lpEnvironment,
+                                  lpCurrentDirectory,
+                                  lpStartupInfo,
+                                  lpProcessInformation);
     if (result == false)
     {
         RAYBENCH_LOG_CRITICAL ("Failed to launch suspended target: {}",
@@ -234,22 +235,94 @@ export bool LaunchInject (CreateProcessInfo& create_process_info, LPCSTR dll)
         return false;
     }
 
-    RAYBENCH_LOG_DEBUG ("Launched suspended target: process ID {}", process_info.dwProcessId);
+    RAYBENCH_LOG_DEBUG ("Launched suspended target: process ID {}", lpProcessInformation->dwProcessId);
 
-    if (InjectLoadDLL (process_info.hProcess, dll) == false)
+    if (InjectLoadDLL (lpProcessInformation->hProcess, dll) == false)
     {
         RAYBENCH_LOG_CRITICAL ("Failed to inject and load dynamic-link library into target: {}",
                                GetLastError ());
-        TerminateProcess (process_info.hProcess, 1);
-        CloseHandle (process_info.hThread);
-        CloseHandle (process_info.hProcess);
+        TerminateProcess (lpProcessInformation->hProcess, 1);
+        CloseHandle (lpProcessInformation->hThread);
+        CloseHandle (lpProcessInformation->hProcess);
         return false;
     }
-    ResumeThread (process_info.hThread);
+    ResumeThread (lpProcessInformation->hThread);
 
-    RAYBENCH_LOG_DEBUG ("Injected and loaded dynamic-link library into target and resumed: process ID {}", process_info.dwProcessId);
+    RAYBENCH_LOG_DEBUG ("Injected and loaded dynamic-link library into target and resumed: process ID {}", lpProcessInformation->dwProcessId);
 
     return result;
+}
+
+/// @brief Launch a process and inject dynamic-link library into it
+export BOOL LaunchInjectW (LPCWSTR lpApplicationName,
+                           LPWSTR lpCommandLine,
+                           LPSECURITY_ATTRIBUTES lpProcessAttributes,
+                           LPSECURITY_ATTRIBUTES lpThreadAttributes,
+                           BOOL bInheritHandles,
+                           DWORD dwCreationFlags,
+                           LPVOID lpEnvironment,
+                           LPCWSTR lpCurrentDirectory,
+                           LPSTARTUPINFOW lpStartupInfo,
+                           LPPROCESS_INFORMATION lpProcessInformation,
+                           LPCSTR dll)
+{
+    BOOL result = CreateProcessW (lpApplicationName,
+                                  lpCommandLine,
+                                  lpProcessAttributes,
+                                  lpThreadAttributes,
+                                  bInheritHandles,
+                                  dwCreationFlags,
+                                  lpEnvironment,
+                                  lpCurrentDirectory,
+                                  lpStartupInfo,
+                                  lpProcessInformation);
+    if (result == false)
+    {
+        RAYBENCH_LOG_CRITICAL ("Failed to launch suspended target: {}",
+                               GetLastError ());
+        return false;
+    }
+
+    RAYBENCH_LOG_DEBUG ("Launched suspended target: process ID {}", lpProcessInformation->dwProcessId);
+
+    if (InjectLoadDLL (lpProcessInformation->hProcess, dll) == false)
+    {
+        RAYBENCH_LOG_CRITICAL ("Failed to inject and load dynamic-link library into target: {}",
+                               GetLastError ());
+        TerminateProcess (lpProcessInformation->hProcess, 1);
+        CloseHandle (lpProcessInformation->hThread);
+        CloseHandle (lpProcessInformation->hProcess);
+        return false;
+    }
+    ResumeThread (lpProcessInformation->hThread);
+
+    RAYBENCH_LOG_DEBUG ("Injected and loaded dynamic-link library into target and resumed: process ID {}", lpProcessInformation->dwProcessId);
+
+    return result;
+}
+
+/// @brief Launch a process and inject dynamic-link library into it
+/// 
+/// @param create_process_info Information related to the target process
+///                            to launch and inject into
+/// @param dll Path to the dynamic-link library to inject
+export BOOL LaunchInject (CreateProcessInfo& create_process_info, LPCSTR dll)
+{
+    STARTUPINFOA startup_info {};
+    startup_info.cb = sizeof (startup_info);
+    PROCESS_INFORMATION process_info {};
+
+    return LaunchInjectA (create_process_info.app_path.string ().c_str (),
+                          const_cast<LPSTR>(create_process_info.arguments.data ()),
+                          nullptr,
+                          nullptr,
+                          TRUE,
+                          CREATE_DEFAULT_ERROR_MODE | CREATE_SUSPENDED,
+                          nullptr,
+                          create_process_info.app_directory.string ().c_str (),
+                          &startup_info,
+                          &process_info,
+                          dll);
 }
 
 }
