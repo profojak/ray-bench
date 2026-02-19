@@ -67,6 +67,101 @@ public:
         bool output_to_debug_string {false};
         ///< Listen via a named pipe for inter process communication
         bool listen_to_named_pipe {false};
+
+        // --------------------------------------------------------------------
+
+        /// @brief Serialize the settings to a string
+        /// 
+        /// @return Serialized settings string
+        std::string Serialize ()
+        {
+            return std::format ("min_severity={}:"
+                                "output_detailed_log_info={}:"
+                                "output_timestamps={}:"
+                                "flush_after_write={}:"
+                                "break_on_error={}:"
+                                "write_to_file={}:"
+                                "append_to_file={}:"
+                                "leave_file_open={}:"
+                                "file_name={}:"
+                                "output_to_console={}:"
+                                "output_errors_to_stderr={}:"
+                                "output_to_debug_string={}:"
+                                "listen_to_named_pipe={}",
+                                SeverityToString (min_severity),
+                                output_detailed_log_info,
+                                output_timestamps,
+                                flush_after_write,
+                                break_on_error,
+                                write_to_file,
+                                append_to_file,
+                                leave_file_open,
+                                file_name,
+                                output_to_console,
+                                output_errors_to_stderr,
+                                output_to_debug_string,
+                                listen_to_named_pipe);
+        }
+
+        /// @brief Deserialize settings from a string
+        ///
+        /// @param str Serialized settings string view
+        bool Deserialize (std::string_view str)
+        {
+            auto key_value_pairs = str | std::views::split (':');
+            for (auto&& pair_range : key_value_pairs)
+            {
+                auto pair = std::string_view (pair_range);
+                auto delim_pos = pair.find ('=');
+
+                if (delim_pos == std::string_view::npos)
+                {
+                    continue;
+                }
+
+                std::string_view key = pair.substr (0, delim_pos);
+                std::string_view value = pair.substr (delim_pos + 1);
+
+                auto ToBool = [] (std::string_view str)
+                    {
+                        return str == "1" || str == "true" || str == "True" || str == "TRUE";
+                    };
+
+                if (key == "min_severity")
+                {
+                    if (auto severity_result = StringToSeverity (value); severity_result.has_value ())
+                    {
+                        min_severity = severity_result.value ();
+                    }
+                }
+                else if (key == "output_detailed_log_info")
+                    output_detailed_log_info = ToBool (value);
+                else if (key == "output_timestamps")
+                    output_timestamps = ToBool (value);
+                else if (key == "flush_after_write")
+                    flush_after_write = ToBool (value);
+                else if (key == "break_on_error")
+                    break_on_error = ToBool (value);
+                else if (key == "write_to_file")
+                    write_to_file = ToBool (value);
+                else if (key == "append_to_file")
+                    append_to_file = ToBool (value);
+                else if (key == "leave_file_open")
+                    leave_file_open = ToBool (value);
+                else if (key == "file_name")
+                    file_name = value;
+                else if (key == "output_to_console")
+                    output_to_console = ToBool (value);
+                else if (key == "output_errors_to_stderr")
+                    output_errors_to_stderr = ToBool (value);
+                else if (key == "output_to_debug_string")
+                    output_to_debug_string = ToBool (value);
+                else if (key == "listen_to_named_pipe")
+                    listen_to_named_pipe = ToBool (value);
+            }
+
+            return true;
+        }
     };
 
     // ------------------------------------------------------------------------
@@ -178,28 +273,17 @@ public:
                             std::format_string<Args...> fmt,
                             Args&&... args)
     {
-        const std::string formatted_message = std::format (fmt, std::forward<Args> (args)...);
+        const std::string message = std::format (fmt, std::forward<Args> (args)...);
+        const std::string formatted_message = LogFormat (severity, location, message);
         if (initialized_ == true)
         {
-            LogMessageImpl (severity,
-                            location.file_name (),
-                            location.line (),
-                            location.column (),
-                            location.function_name (),
-                            formatted_message);
+            LogMessageImpl (severity, formatted_message);
         }
         else
         {
-            const std::string output = std::format ("{}|{}|{}|{}|{}|{}",
-                                                    SeverityToString (severity),
-                                                    location.file_name (),
-                                                    location.line (),
-                                                    location.column (),
-                                                    location.function_name (),
-                                                    formatted_message);
             DWORD bytes_written = 0;
-            WriteFile (named_pipe_handle_, output.data (),
-                       static_cast<DWORD> (output.size ()), &bytes_written, nullptr);
+            WriteFile (named_pipe_handle_, message.data (),
+                       static_cast<DWORD> (message.size ()), &bytes_written, nullptr);
         }
     }
 
@@ -299,30 +383,23 @@ public:
         return settings_.min_severity;
     }
 
+    /// @brief Get the reference to logger settings
+    /// 
+    /// @return Logger settings reference
+    [[nodiscard]] static Settings& GetSettings () noexcept
+    {
+        return settings_;
+    }
+
 private:
 
     // ------------------------------------------------------------------------
 
-    /// @brief Log a message implementation
-    /// 
-    /// @param severity Severity level
-    /// @param file_name Source file name
-    /// @param line Source line number
-    /// @param column Source column number
-    /// @param function_name Source function name
-    /// @param message Formatted log message
-    static void LogMessageImpl (Severity severity,
-                                std::string_view file_name,
-                                std::uint_least32_t line,
-                                std::uint_least32_t column,
-                                std::string_view function_name,
-                                std::string_view message)
+    static [[nodiscard]] std::string LogFormat (Severity severity,
+                                                const std::source_location& location,
+                                                std::string_view message)
     {
         constexpr std::string_view process_tag = "ray-bench";
-
-        const bool output_to_stderr = (severity >= Severity::error) &&
-            settings_.output_to_console &&
-            settings_.output_errors_to_stderr;
 
         std::string prefix;
         if (severity != Severity::always)
@@ -339,25 +416,39 @@ private:
 
             if (settings_.output_detailed_log_info)
             {
-                std::string_view relative_path = file_name;
+                std::string_view full_path = location.file_name ();
+                std::string_view relative_path = full_path;
 
-                if (auto pos = file_name.find ("source\\");
+                if (auto pos = full_path.find ("source\\");
                     pos != std::string_view::npos)
                 {
-                    relative_path = file_name.substr (pos + 7);
+                    relative_path = full_path.substr (pos + 7);
                 }
 
                 prefix += std::format (" [{}({},{}): {}]",
                                        relative_path,
-                                       line,
-                                       column,
-                                       function_name);
+                                       location.line (),
+                                       location.column (),
+                                       location.function_name ());
             }
 
             prefix += " ";
         }
 
-        std::string output_message = std::format ("{}{}", prefix, message);
+        return std::format ("{}{}", prefix, message);
+    }
+
+    // ------------------------------------------------------------------------
+
+    /// @brief Log a message implementation
+    /// 
+    /// @param severity Severity level
+    /// @param output_message Formatted log message
+    static void LogMessageImpl (Severity severity, std::string_view output_message)
+    {
+        const bool output_to_stderr = (severity >= Severity::error) &&
+            settings_.output_to_console &&
+            settings_.output_errors_to_stderr;
 
         std::scoped_lock lock (log_mutex_);
 
@@ -366,7 +457,7 @@ private:
         {
             if (settings_.output_to_debug_string)
             {
-                OutputDebugStringA (output_message.c_str ());
+                OutputDebugStringA (output_message.data ());
             }
             else
             {
@@ -467,38 +558,7 @@ private:
             if (result == true && bytes_read > 0)
             {
                 std::string_view message (buffer.data (), bytes_read);
-                std::vector<std::string_view> parts;
-                auto parsed = std::views::split (message, '|') |
-                    std::views::transform ([] (auto&& part)
-                                           {
-                                               return std::string_view (&*part.begin (),
-                                                                        std::ranges::distance (part));
-                                           });
-                std::ranges::copy (parsed, std::back_inserter (parts));
-
-                Severity severity = Severity::info;
-                if (auto severity_result = StringToSeverity (parts[0]); severity_result.has_value ())
-                {
-                    severity = severity_result.value ();
-                }
-                std::uint_least32_t line;
-                if (auto line_result = std::from_chars (parts[2].data (),
-                                                        parts[2].data () + parts[2].size (),
-                                                        line);
-                    line_result.ec != std::errc ())
-                {
-                    line = 0;
-                }
-                std::uint_least32_t column;
-                if (auto column_result = std::from_chars (parts[3].data (),
-                                                          parts[3].data () + parts[3].size (),
-                                                          column);
-                    column_result.ec != std::errc ())
-                {
-                    column = 0;
-                }
-
-                LogMessageImpl (severity, parts[1], line, column, parts[4], parts[5]);
+                LogMessageImpl (settings_.min_severity, message);
             }
             else if (result == false)
             {

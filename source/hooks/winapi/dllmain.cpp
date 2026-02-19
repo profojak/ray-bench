@@ -24,6 +24,11 @@ BOOL APIENTRY DllMain (HMODULE /*hModule*/,
         case DLL_PROCESS_ATTACH:
         case DLL_THREAD_ATTACH:
         {
+            auto log_settings = raybench::util::EnvVar::Get (raybench::util::EnvVar::log_settings);
+            if (log_settings.has_value ())
+            {
+                raybench::util::Log::GetSettings ().Deserialize (log_settings.value ());
+            }
             raybench::util::Log::ClientConnect ();
             RAYBENCH_LOG_DEBUG ("DLL attached to process/thread");
         }

@@ -56,7 +56,7 @@ int main (int argc, const char** argv)
 
     // Get the process paths matching the specified target
     auto create_process_info = raybench::util::GetCreateProcessInfo (args.GetPositionalArguments ().front ());
-    if (create_process_info.has_value() == false)
+    if (create_process_info.has_value () == false)
     {
         RAYBENCH_LOG_ERROR ("No process found matching the specified target: {}",
                             args.GetPositionalArguments ().front ());
@@ -72,7 +72,10 @@ int main (int argc, const char** argv)
         return 1;
     }
 
-    raybench::util::LaunchInject (create_process_info.value(), dll_path.string ().c_str());
+    raybench::util::EnvVar::Set (raybench::util::EnvVar::log_settings,
+                                 raybench::util::Log::GetSettings ().Serialize ());
+
+    raybench::util::LaunchInject (create_process_info.value (), dll_path.string ().c_str ());
 
     raybench::util::Log::Release ();
     return 0;
