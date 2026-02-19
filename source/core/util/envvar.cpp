@@ -15,7 +15,7 @@ export module RayBench.Util:EnvVar;
 import std;
 import :Log;
 
-namespace raybench::util
+namespace raybench::util::EnvVar
 {
 
 ///< Maximum length for environment variable values
@@ -24,21 +24,25 @@ constexpr size_t max_env_var_length = 8192;
 ///< Environment variable name for log settings
 export constexpr std::string_view log_settings = "RAY_BENCH_LOG_SETTINGS";
 
+// ----------------------------------------------------------------------------
+
 /// @brief Set an environment variable
 /// 
 /// @param name The name of the environment variable
 /// @param value The value to set
 /// @return True if the environment variable was set successfully, false otherwise
-export bool SetEnvVar (std::string_view name, std::string_view value) noexcept
+export bool Set (std::string_view name, std::string_view value) noexcept
 {
     return SetEnvironmentVariableA (name.data (), value.data ()) != 0;
 }
+
+// ----------------------------------------------------------------------------
 
 /// @brief Get the value of an environment variable
 /// 
 /// @param name The name of the environment variable
 /// @return The value of the environment variable, or std::nullopt if not found
-export [[nodiscard]] std::optional<std::string> GetEnvVar (std::string_view name) noexcept
+export [[nodiscard]] std::optional<std::string> Get (std::string_view name) noexcept
 {
     std::array<char, max_env_var_length> buffer {};
     DWORD result = GetEnvironmentVariableA (name.data (), buffer.data (),
@@ -66,10 +70,12 @@ export [[nodiscard]] std::optional<std::string> GetEnvVar (std::string_view name
     return std::nullopt;
 }
 
+// ----------------------------------------------------------------------------
+
 /// @brief Unset an environment variable
 /// 
 /// @param name The name of the environment variable
-export void UnsetEnvVar (std::string_view name) noexcept
+export void Unset (std::string_view name) noexcept
 {
     if (SetEnvironmentVariableA (name.data (), nullptr) == 0)
     {
