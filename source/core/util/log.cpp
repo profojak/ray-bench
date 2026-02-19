@@ -234,6 +234,8 @@ public:
     {
         switch (severity)
         {
+            case Severity::trace:
+                return "trace";
             case Severity::debug:
                 return "debug";
             case Severity::info:
@@ -269,6 +271,8 @@ public:
                                            });
             };
 
+        if (IsSame (str, "trace"))
+            return Severity::trace;
         if (IsSame (str, "debug"))
             return Severity::debug;
         if (IsSame (str, "info"))
