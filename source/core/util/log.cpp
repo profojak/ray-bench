@@ -282,8 +282,8 @@ public:
         else
         {
             DWORD bytes_written = 0;
-            WriteFile (named_pipe_handle_, message.data (),
-                       static_cast<DWORD> (message.size ()), &bytes_written, nullptr);
+            WriteFile (named_pipe_handle_, formatted_message.data (),
+                       static_cast<DWORD> (formatted_message.size ()), &bytes_written, nullptr);
         }
     }
 
