@@ -204,22 +204,31 @@ public:
     /// @brief Release logging resources
     static void Release ()
     {
-        std::scoped_lock lock (log_mutex_);
+        HANDLE thread_to_wait = INVALID_HANDLE_VALUE;
 
-        if (settings_.write_to_file && settings_.leave_file_open)
         {
-            log_file_.close ();
-            settings_.write_to_file = false;
+            std::scoped_lock lock (log_mutex_);
+
+            if (settings_.write_to_file && settings_.leave_file_open)
+            {
+                log_file_.close ();
+                settings_.write_to_file = false;
+            }
+
+            initialized_ = false;
+
+            if (settings_.listen_to_named_pipe)
+            {
+                thread_to_wait = log_thread_handle_;
+                log_thread_handle_ = INVALID_HANDLE_VALUE;
+            }
         }
 
-        if (settings_.listen_to_named_pipe && log_thread_handle_ != INVALID_HANDLE_VALUE)
+        if (thread_to_wait != INVALID_HANDLE_VALUE)
         {
-            WaitForSingleObject (log_thread_handle_, INFINITE);
-            CloseHandle (log_thread_handle_);
-            log_thread_handle_ = INVALID_HANDLE_VALUE;
+            WaitForSingleObject (thread_to_wait, INFINITE);
+            CloseHandle (thread_to_wait);
         }
-
-        initialized_ = false;
     }
 
     // ------------------------------------------------------------------------
@@ -519,43 +528,20 @@ private:
 
     // ------------------------------------------------------------------------
 
-    /// @brief Thread procedure for listening to the named pipe
-    static DWORD WINAPI LogThreadProc (LPVOID /*lpParam*/)
+    /// @brief Thread procedure for handling a named pipe client connection
+    /// 
+    /// @param lpParam Pointer to the named pipe handle for the client
+    static DWORD WINAPI ClientThreadProc(LPVOID lpParam)
     {
-        named_pipe_handle_ = CreateNamedPipeA (named_pipe_name_,
-                                               PIPE_ACCESS_INBOUND,
-                                               PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-                                               PIPE_UNLIMITED_INSTANCES,
-                                               named_pipe_buffer_size_,
-                                               named_pipe_buffer_size_,
-                                               0,
-                                               nullptr);
-        if (named_pipe_handle_ == INVALID_HANDLE_VALUE)
-        {
-            RAYBENCH_LOG_CRITICAL ("Failed to create named pipe: {}", GetLastError ());
-            return 1;
-        }
+        RAYBENCH_LOG_TRACE ("Starting named pipe client thread...");
 
-        RAYBENCH_LOG_DEBUG ("Created named pipe");
-        RAYBENCH_LOG_TRACE ("Waiting for named pipe client to connect...");
-
-        bool connected = ConnectNamedPipe (named_pipe_handle_, nullptr) ||
-            GetLastError () == ERROR_PIPE_CONNECTED;
-        if (connected == false)
-        {
-            RAYBENCH_LOG_CRITICAL ("Failed to connect named pipe to client: {}", GetLastError ());
-            CloseHandle (named_pipe_handle_);
-            return 1;
-        }
-
-        RAYBENCH_LOG_INFO ("Client connected to named pipe");
-        RAYBENCH_LOG_TRACE ("Starting to read from named pipe...");
-
+        HANDLE pipe_handle = reinterpret_cast<HANDLE> (lpParam);
         std::array<CHAR, named_pipe_buffer_size_> buffer {};
         DWORD bytes_read = 0;
+
         while (true)
         {
-            bool result = ReadFile (named_pipe_handle_, buffer.data (),
+            bool result = ReadFile (pipe_handle, buffer.data (),
                                     static_cast<DWORD> (buffer.size ()), &bytes_read, nullptr);
             if (result == true && bytes_read > 0)
             {
@@ -577,12 +563,61 @@ private:
             }
         }
 
-        RAYBENCH_LOG_TRACE ("Stopping log thread, disconnecting and closing named pipe...");
-
-        DisconnectNamedPipe (named_pipe_handle_);
-        CloseHandle (named_pipe_handle_);
-        named_pipe_handle_ = INVALID_HANDLE_VALUE;
+        DisconnectNamedPipe (pipe_handle);
+        CloseHandle (pipe_handle);
         return 0;
+    }
+
+    // ------------------------------------------------------------------------
+
+    /// @brief Thread procedure for listening to the named pipe
+    static DWORD WINAPI LogThreadProc (LPVOID /*lpParam*/)
+    {
+        RAYBENCH_LOG_TRACE ("Starting named pipe server thread...");
+
+        while (true)
+        {
+            HANDLE pipe_handle = CreateNamedPipeA (named_pipe_name_,
+                                                   PIPE_ACCESS_INBOUND,
+                                                   PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+                                                   PIPE_UNLIMITED_INSTANCES,
+                                                   named_pipe_buffer_size_,
+                                                   named_pipe_buffer_size_,
+                                                   0,
+                                                   nullptr);
+            if (pipe_handle == INVALID_HANDLE_VALUE) 
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to create named pipe: {}", GetLastError ());
+                return 1;
+            }
+
+            RAYBENCH_LOG_TRACE ("Waiting for named pipe client to connect...");
+
+            bool connected = ConnectNamedPipe (pipe_handle, nullptr) ||
+                GetLastError () == ERROR_PIPE_CONNECTED;
+            if (connected == false)
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to connect named pipe to client: {}", GetLastError ());
+                CloseHandle (pipe_handle);
+                return 1;
+            }
+
+            RAYBENCH_LOG_INFO ("Client connected to named pipe");
+            RAYBENCH_LOG_TRACE ("Starting to read from named pipe in child thread...");
+
+            HANDLE thread_handle = CreateThread (nullptr, 0, ClientThreadProc, pipe_handle, 0, nullptr);
+            if (thread_handle == nullptr)
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to create client thread: {}", GetLastError ());
+                DisconnectNamedPipe (pipe_handle);
+                CloseHandle (pipe_handle);
+                return 1;
+            }
+            else
+            {
+                CloseHandle (thread_handle);
+            }
+        }
     }
 
     // ------------------------------------------------------------------------
