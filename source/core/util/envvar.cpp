@@ -78,4 +78,6 @@ export void UnsetEnvVar (std::string_view name) noexcept
     }
 }
 
+}
+
 // ----------------------------------------------------------------------------
