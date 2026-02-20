@@ -15,6 +15,8 @@ export module RayBench.WinAPI:HookLoadLibrary;
 import RayBench.Util;
 import :Guard;
 
+using namespace std::literals;
+
 namespace raybench::util::WinAPI
 {
 
@@ -168,37 +170,25 @@ static HMODULE Hook_LoadLibraryExW (LPCWSTR lpLibFileName,
 /// @return True if successful, false otherwise
 export bool HookLoadLibrary ()
 {
-    bool result = raybench::util::HookAPICall (&(PVOID&) Real_FreeLibrary, Hook_FreeLibrary);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook 'FreeLibrary'");
-    }
+    bool result = true;
 
-    result = raybench::util::HookAPICall (&(PVOID&) Real_LoadLibraryA, Hook_LoadLibraryA);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook 'LoadLibraryA'");
-    }
+    auto Hook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
+        {
+            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&real_func),
+                                              reinterpret_cast<PVOID>(hook_func)))
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to hook '{}'", func_name);
+                result = false;
+            }
+        };
 
-    result = raybench::util::HookAPICall (&(PVOID&) Real_LoadLibraryExA, Hook_LoadLibraryExA);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook 'LoadLibraryExA'");
-    }
+    Hook (Real_FreeLibrary, Hook_FreeLibrary, "FreeLibrary"sv);
+    Hook (Real_LoadLibraryA, Hook_LoadLibraryA, "LoadLibraryA"sv);
+    Hook (Real_LoadLibraryExA, Hook_LoadLibraryExA, "LoadLibraryExA"sv);
+    Hook (Real_LoadLibraryW, Hook_LoadLibraryW, "LoadLibraryW"sv);
+    Hook (Real_LoadLibraryExW, Hook_LoadLibraryExW, "LoadLibraryExW"sv);
 
-    result = raybench::util::HookAPICall (&(PVOID&) Real_LoadLibraryW, Hook_LoadLibraryW);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook 'LoadLibraryW'");
-    }
-
-    result = raybench::util::HookAPICall (&(PVOID&) Real_LoadLibraryExW, Hook_LoadLibraryExW);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook 'LoadLibraryExW'");
-    }
-
-    return true;
+    return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -207,35 +197,23 @@ export bool HookLoadLibrary ()
 /// @return True if successful, false otherwise
 export bool UnhookLoadLibrary ()
 {
-    bool result = raybench::util::UnhookAPICall (&(PVOID&) Real_FreeLibrary, Hook_FreeLibrary);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to unhook 'FreeLibrary'");
-    }
+    bool result = true;
 
-    result = raybench::util::UnhookAPICall (&(PVOID&) Real_LoadLibraryA, Hook_LoadLibraryA);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to unhook 'LoadLibraryA'");
-    }
+    auto Unhook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
+        {
+            if (!raybench::util::UnhookAPICall (reinterpret_cast<PVOID*>(&real_func),
+                                              reinterpret_cast<PVOID>(hook_func)))
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to unhook '{}'", func_name);
+                result = false;
+            }
+        };
 
-    result = raybench::util::UnhookAPICall (&(PVOID&) Real_LoadLibraryExA, Hook_LoadLibraryExA);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to unhook 'LoadLibraryExA'");
-    }
-
-    result = raybench::util::UnhookAPICall (&(PVOID&) Real_LoadLibraryW, Hook_LoadLibraryW);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to unhook 'LoadLibraryW'");
-    }
-
-    result = raybench::util::UnhookAPICall (&(PVOID&) Real_LoadLibraryExW, Hook_LoadLibraryExW);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to unhook 'LoadLibraryExW'");
-    }
+    Unhook (Real_FreeLibrary, Hook_FreeLibrary, "FreeLibrary"sv);
+    Unhook (Real_LoadLibraryA, Hook_LoadLibraryA, "LoadLibraryA"sv);
+    Unhook (Real_LoadLibraryExA, Hook_LoadLibraryExA, "LoadLibraryExA"sv);
+    Unhook (Real_LoadLibraryW, Hook_LoadLibraryW, "LoadLibraryW"sv);
+    Unhook (Real_LoadLibraryExW, Hook_LoadLibraryExW, "LoadLibraryExW"sv);
 
     Real_FreeLibrary = FreeLibrary;
     Real_LoadLibraryA = LoadLibraryA;
@@ -243,7 +221,7 @@ export bool UnhookLoadLibrary ()
     Real_LoadLibraryW = LoadLibraryW;
     Real_LoadLibraryExW = LoadLibraryExW;
 
-    return true;
+    return result;
 }
 
 }
