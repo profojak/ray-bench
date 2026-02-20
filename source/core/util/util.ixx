@@ -9,5 +9,6 @@ export import :Detours;
 export import :EnvVar;
 export import :Inject;
 export import :Log;
+export import :String;
 
 // ----------------------------------------------------------------------------

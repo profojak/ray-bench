@@ -96,37 +96,6 @@ struct CreateProcessTag
 
 // ----------------------------------------------------------------------------
 
-/// @brief Convert wide string to ordinary one
-/// 
-/// @param wstr Wide string
-/// @return Converted wide string
-static std::string ConvertWideString (std::wstring_view wstr)
-{
-    if (wstr.empty ())
-    {
-        return std::string {};
-    }
-
-    int size_needed = WideCharToMultiByte (CP_UTF8, 0, wstr.data (), (int) wstr.size (), nullptr, 0, nullptr, nullptr);
-    if (size_needed <= 0)
-    {
-        RAYBENCH_LOG_ERROR ("Failed to convert wide string to narrow string: {}", GetLastError ());
-        return std::string {};
-    }
-
-    std::string str (size_needed, 0);
-    int result = WideCharToMultiByte (CP_UTF8, 0, wstr.data (), (int) wstr.size (), str.data (), size_needed, nullptr, nullptr);
-    if (result <= 0)
-    {
-        RAYBENCH_LOG_ERROR ("Failed to convert wide string to narrow string: {}", GetLastError ());
-        return std::string {};
-    }
-
-    return str;
-}
-
-// ----------------------------------------------------------------------------
-
 /// @brief Check whether to block injection into a new process
 /// 
 /// @tparam CharT Character type
@@ -149,7 +118,7 @@ export template <typename CharT>
             }
             else
             {
-                return IsBlacklisted (ConvertWideString (ptr));
+                return IsBlacklisted (raybench::util::string::WideToNarrow (ptr));
             }
         };
 
@@ -264,7 +233,8 @@ static BOOL WINAPI Hook_CreateProcessW (LPCWSTR lpApplicationName,
     if (BlockInjection (lpApplicationName, lpCommandLine) == true)
     {
         RAYBENCH_LOG_WARNING ("Blocked reinjection to a new process: application name '{}', command line '{}'",
-                              ConvertWideString (lpApplicationName), ConvertWideString (lpCommandLine));
+                              raybench::util::string::WideToNarrow (lpApplicationName),
+                              raybench::util::string::WideToNarrow (lpCommandLine));
         return Real_CreateProcessW (lpApplicationName,
                                     lpCommandLine,
                                     lpProcessAttributes,
