@@ -32,6 +32,7 @@ BOOL APIENTRY DllMain (HMODULE /*hModule*/,
             raybench::util::Log::ClientConnect ();
 
             raybench::util::WinAPI::HookCreateProcess ();
+            raybench::util::WinAPI::HookLoadLibrary ();
 
             RAYBENCH_LOG_INFO ("Hooked Windows API calls");
         }

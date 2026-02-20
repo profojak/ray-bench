@@ -27,5 +27,8 @@
     <ClCompile Include="guard.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="load_library.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
