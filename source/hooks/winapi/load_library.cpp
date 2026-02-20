@@ -64,8 +64,7 @@ static void HookLibraries ()
 
 // ----------------------------------------------------------------------------
 
-/// @brief Free the loaded dynamic-link library module and, if necessary,
-///        decrement its reference count
+/// @brief Common implementation for 'LoadLibrary' hooks
 template <typename CharT, typename Func, typename... Args>
 static HMODULE LoadLibraryImpl (const CharT* lpFileName, Func real_func, Args... args)
 {
