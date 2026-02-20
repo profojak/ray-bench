@@ -13,6 +13,7 @@ module;
 export module RayBench.WinAPI:HookLoadLibrary;
 
 import RayBench.Util;
+import :Guard;
 
 namespace raybench::util::WinAPI
 {
@@ -35,6 +36,75 @@ struct LoadLibraryTag
 
 // ----------------------------------------------------------------------------
 
+/// @brief Check if the dynamic-link library loads the Steam overlay
+/// @param path Dynamic-link library path
+/// @return True if it does, false otherwise
+static bool IsSteamOverlay (std::string_view path)
+{
+    return path.contains ("gameoverlayrenderer.dll") || path.contains ("gameoverlayrenderer64.dll");
+}
+
+/// @brief Check if the dynamic-link library loads the Steam overlay
+/// @param path Dynamic-link library path
+/// @return True if it does, false otherwise
+static bool IsSteamOverlay (std::wstring_view path)
+{
+    return path.contains (L"gameoverlayrenderer.dll") || path.contains (L"gameoverlayrenderer64.dll");
+}
+
+// ----------------------------------------------------------------------------
+
+/// @brief Hook libraries
+static void HookLibraries ()
+{
+    // TODO
+}
+
+// ----------------------------------------------------------------------------
+
+/// @brief Free the loaded dynamic-link library module and, if necessary,
+///        decrement its reference count
+template <typename CharT, typename Func, typename... Args>
+static HMODULE LoadLibraryImpl (const CharT* lpFileName, Func real_func, Args... args)
+{
+    if (lpFileName && IsSteamOverlay (lpFileName))
+    {
+        return 0;
+    }
+
+    if (ReentrancyGuard<LoadLibraryTag>::IsActive ())
+    {
+        return real_func (lpFileName, args...);
+    }
+
+    ReentrancyGuard<LoadLibraryTag> guard;
+
+    HMODULE module = real_func (lpFileName, args...);
+    DWORD last_error = GetLastError ();
+
+    if (guard.GetRef () == 1)
+    {
+        HookLibraries ();
+
+        if constexpr (std::is_same_v<CharT, char>)
+        {
+            RAYBENCH_LOG_TRACE ("Hooked libraries while loading DLL {}...",
+                                lpFileName);
+        }
+        else
+        {
+            RAYBENCH_LOG_TRACE ("Hooked libraries while loading DLL {}...",
+                                raybench::util::string::WideToNarrow (lpFileName));
+        }
+    }
+
+    SetLastError (last_error);
+
+    return module;
+}
+
+// ----------------------------------------------------------------------------
+
 /// @brief Free the loaded dynamic-link library module and, if necessary,
 ///        decrement its reference count
 /// 
@@ -52,7 +122,7 @@ static BOOL Hook_FreeLibrary (HMODULE hLibModule)
 /// https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya
 static HMODULE Hook_LoadLibraryA (LPCSTR lpLibFileName)
 {
-    return Real_LoadLibraryA (lpLibFileName);
+    return LoadLibraryImpl (lpLibFileName, Real_LoadLibraryA);
 }
 
 // ----------------------------------------------------------------------------
@@ -65,7 +135,7 @@ static HMODULE Hook_LoadLibraryExA (LPCSTR lpLibFileName,
                                     HANDLE hFile,
                                     DWORD  dwFlags)
 {
-    return Real_LoadLibraryExA (lpLibFileName, hFile, dwFlags);
+    return LoadLibraryImpl (lpLibFileName, Real_LoadLibraryExA, hFile, dwFlags);
 }
 
 // ----------------------------------------------------------------------------
@@ -76,7 +146,7 @@ static HMODULE Hook_LoadLibraryExA (LPCSTR lpLibFileName,
 /// https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryw
 static HMODULE Hook_LoadLibraryW (LPCWSTR lpLibFileName)
 {
-    return Real_LoadLibraryW (lpLibFileName);
+    return LoadLibraryImpl (lpLibFileName, Real_LoadLibraryW);
 }
 
 // ----------------------------------------------------------------------------
@@ -89,7 +159,7 @@ static HMODULE Hook_LoadLibraryExW (LPCWSTR lpLibFileName,
                                     HANDLE  hFile,
                                     DWORD   dwFlags)
 {
-    return Real_LoadLibraryExW (lpLibFileName, hFile, dwFlags);
+    return LoadLibraryImpl (lpLibFileName, Real_LoadLibraryExW, hFile, dwFlags);
 }
 
 // ----------------------------------------------------------------------------
