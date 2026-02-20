@@ -16,8 +16,27 @@ import std;
 import RayBench.Util;
 import :Guard;
 
+using namespace std::literals;
+
 namespace raybench::util::WinAPI
 {
+
+///< Array of blacklisted processes to reinject into
+constexpr std::array<std::string_view, 13> blacklisted_processes = {
+    "fxc.exe"sv,
+    "cmd.exe"sv,
+    "dev.exe"sv,
+    "steamwebhelper.exe"sv,
+    "gldriverquery.exe"sv,
+    "gldriverquery64.exe"sv,
+    "vulkandriverquery.exe"sv,
+    "vulkandriverquery64.exe"sv,
+    "galaxyclient helper.exe"sv,
+    "gog galaxy notifications renderer.exe"sv,
+    "galaxyoverlay.exe"sv,
+    "epicwebhelper.exe"sv,
+    "epiconlineservicesuserhelper.exe"sv,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -51,6 +70,94 @@ struct CreateProcessTag
 
 // ----------------------------------------------------------------------------
 
+/// @brief Check if the process is blacklisted
+/// 
+/// @param input Process
+/// @return True if the process is blacklisted, false otherwise
+[[nodiscard]] static bool IsBlacklisted (std::string_view input)
+{
+    if (input.empty ())
+    {
+        return false;
+    }
+
+    auto lower_input = input
+        | std::views::transform ([] (unsigned char c)
+                                 {
+                                     return static_cast<char>(std::tolower (c));
+                                 })
+        | std::ranges::to<std::string> ();
+
+    return std::ranges::any_of (blacklisted_processes, [&] (std::string_view process)
+                                {
+                                    return lower_input.find (process) != std::string::npos;
+                                });
+}
+
+// ----------------------------------------------------------------------------
+
+/// @brief Convert wide string to ordinary one
+/// 
+/// @param wstr Wide string
+/// @return Converted wide string
+static std::string ConvertWideString (std::wstring_view wstr)
+{
+    if (wstr.empty ())
+    {
+        return std::string {};
+    }
+
+    int size_needed = WideCharToMultiByte (CP_UTF8, 0, wstr.data (), (int) wstr.size (), nullptr, 0, nullptr, nullptr);
+    if (size_needed <= 0)
+    {
+        RAYBENCH_LOG_ERROR ("Failed to convert wide string to narrow string: {}", GetLastError ());
+        return std::string {};
+    }
+
+    std::string str (size_needed, 0);
+    int result = WideCharToMultiByte (CP_UTF8, 0, wstr.data (), (int) wstr.size (), str.data (), size_needed, nullptr, nullptr);
+    if (result <= 0)
+    {
+        RAYBENCH_LOG_ERROR ("Failed to convert wide string to narrow string: {}", GetLastError ());
+        return std::string {};
+    }
+
+    return str;
+}
+
+// ----------------------------------------------------------------------------
+
+/// @brief Check whether to block injection into a new process
+/// 
+/// @tparam CharT Character type
+/// @param application_name Application name of the new process
+/// @param command_line Command line of the new process
+/// @return True if the new process is blacklisted, false otherwise
+export template <typename CharT>
+[[nodiscard]] bool BlockInjection (const CharT* application_name, const CharT* command_line)
+{
+    auto Check = [] (const CharT* ptr) -> bool
+        {
+            if (!ptr)
+            {
+                return false;
+            }
+
+            if constexpr (std::is_same_v<CharT, char>)
+            {
+                return IsBlacklisted (ptr);
+            }
+            else
+            {
+                return IsBlacklisted (ConvertWideString (ptr));
+            }
+        };
+
+    return Check (application_name) || Check (command_line);
+}
+
+// ----------------------------------------------------------------------------
+
 /// @brief Create a new process and its primary thread
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
@@ -80,6 +187,22 @@ static BOOL WINAPI Hook_CreateProcessA (LPCSTR lpApplicationName,
     }
 
     ReentrancyGuard<CreateProcessTag> guard;
+
+    if (BlockInjection (lpApplicationName, lpCommandLine) == true)
+    {
+        RAYBENCH_LOG_WARNING ("Blocked reinjection to a new process: application name '{}', command line '{}'",
+                              lpApplicationName, lpCommandLine);
+        return Real_CreateProcessA (lpApplicationName,
+                                    lpCommandLine,
+                                    lpProcessAttributes,
+                                    lpThreadAttributes,
+                                    bInheritHandles,
+                                    dwCreationFlags,
+                                    lpEnvironment,
+                                    lpCurrentDirectory,
+                                    lpStartupInfo,
+                                    lpProcessInformation);
+    }
 
     RAYBENCH_LOG_TRACE ("Reinjecting and reconnecting to a new process...");
 
@@ -137,6 +260,22 @@ static BOOL WINAPI Hook_CreateProcessW (LPCWSTR lpApplicationName,
     }
 
     ReentrancyGuard<CreateProcessTag> guard;
+
+    if (BlockInjection (lpApplicationName, lpCommandLine) == true)
+    {
+        RAYBENCH_LOG_WARNING ("Blocked reinjection to a new process: application name '{}', command line '{}'",
+                              ConvertWideString (lpApplicationName), ConvertWideString (lpCommandLine));
+        return Real_CreateProcessW (lpApplicationName,
+                                    lpCommandLine,
+                                    lpProcessAttributes,
+                                    lpThreadAttributes,
+                                    bInheritHandles,
+                                    dwCreationFlags,
+                                    lpEnvironment,
+                                    lpCurrentDirectory,
+                                    lpStartupInfo,
+                                    lpProcessInformation);
+    }
 
     RAYBENCH_LOG_TRACE ("Reinjecting and reconnecting to a new process...");
 
