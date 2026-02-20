@@ -127,6 +127,61 @@ export template <typename CharT>
 
 // ----------------------------------------------------------------------------
 
+/// @brief Common implementation for `CreateProcess` hooks
+template <typename CharT, typename Func, typename... Args>
+static BOOL CreateProcessImpl (const CharT* lpApplicationName,
+                               CharT* lpCommandLine,
+                               Func real_func,
+                               Args... args)
+{
+    if (ReentrancyGuard<CreateProcessTag>::IsActive ())
+    {
+        return real_func (lpApplicationName, lpCommandLine, args...);
+    }
+
+    ReentrancyGuard<CreateProcessTag> guard;
+
+    if (BlockInjection (lpApplicationName, lpCommandLine) == true)
+    {
+        if constexpr (std::is_same_v<CharT, char>)
+        {
+            RAYBENCH_LOG_WARNING ("Blocked reinjection to a new process: application name '{}', command line '{}'",
+                                  lpApplicationName ? lpApplicationName : "",
+                                  lpCommandLine ? lpCommandLine : "");
+        }
+        else
+        {
+            RAYBENCH_LOG_WARNING ("Blocked reinjection to a new process: application name '{}', command line '{}'",
+                                  lpApplicationName ? raybench::util::string::WideToNarrow (lpApplicationName) : "",
+                                  lpCommandLine ? raybench::util::string::WideToNarrow (lpCommandLine) : "");
+        }
+        return real_func (lpApplicationName, lpCommandLine, args...);
+    }
+
+    RAYBENCH_LOG_TRACE ("Reinjecting and reconnecting to a new process...");
+
+    auto winapi_dll_path = raybench::util::EnvVar::Get (raybench::util::EnvVar::winapi_dll_path);
+    if (winapi_dll_path.has_value ())
+    {
+        if constexpr (std::is_same_v<CharT, char>)
+        {
+            return raybench::util::LaunchInjectA (lpApplicationName, lpCommandLine, args..., winapi_dll_path.value ().data ());
+        }
+        else
+        {
+            return raybench::util::LaunchInjectW (lpApplicationName, lpCommandLine, args..., winapi_dll_path.value ().data ());
+        }
+    }
+    else
+    {
+        RAYBENCH_LOG_CRITICAL ("Environment variable '{}' not set",
+                               raybench::util::EnvVar::winapi_dll_path);
+        return FALSE;
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// @brief Create a new process and its primary thread
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
@@ -141,61 +196,17 @@ static BOOL WINAPI Hook_CreateProcessA (LPCSTR lpApplicationName,
                                         LPSTARTUPINFOA lpStartupInfo,
                                         LPPROCESS_INFORMATION lpProcessInformation)
 {
-    if (raybench::util::WinAPI::ReentrancyGuard<CreateProcessTag>::IsActive ())
-    {
-        return Real_CreateProcessA (lpApplicationName,
-                                    lpCommandLine,
-                                    lpProcessAttributes,
-                                    lpThreadAttributes,
-                                    bInheritHandles,
-                                    dwCreationFlags,
-                                    lpEnvironment,
-                                    lpCurrentDirectory,
-                                    lpStartupInfo,
-                                    lpProcessInformation);
-    }
-
-    ReentrancyGuard<CreateProcessTag> guard;
-
-    if (BlockInjection (lpApplicationName, lpCommandLine) == true)
-    {
-        RAYBENCH_LOG_WARNING ("Blocked reinjection to a new process: application name '{}', command line '{}'",
-                              lpApplicationName, lpCommandLine);
-        return Real_CreateProcessA (lpApplicationName,
-                                    lpCommandLine,
-                                    lpProcessAttributes,
-                                    lpThreadAttributes,
-                                    bInheritHandles,
-                                    dwCreationFlags,
-                                    lpEnvironment,
-                                    lpCurrentDirectory,
-                                    lpStartupInfo,
-                                    lpProcessInformation);
-    }
-
-    RAYBENCH_LOG_TRACE ("Reinjecting and reconnecting to a new process...");
-
-    auto winapi_dll_path = raybench::util::EnvVar::Get (raybench::util::EnvVar::winapi_dll_path);
-    if (winapi_dll_path.has_value ())
-    {
-        return raybench::util::LaunchInjectA (lpApplicationName,
-                                              lpCommandLine,
-                                              lpProcessAttributes,
-                                              lpThreadAttributes,
-                                              bInheritHandles,
-                                              dwCreationFlags,
-                                              lpEnvironment,
-                                              lpCurrentDirectory,
-                                              lpStartupInfo,
-                                              lpProcessInformation,
-                                              winapi_dll_path.value ().data ());
-    }
-    else
-    {
-        RAYBENCH_LOG_CRITICAL ("Environment variable '{}' not set",
-                               raybench::util::EnvVar::winapi_dll_path);
-        return FALSE;
-    }
+    return CreateProcessImpl (lpApplicationName,
+                              lpCommandLine,
+                              Real_CreateProcessA,
+                              lpProcessAttributes,
+                              lpThreadAttributes,
+                              bInheritHandles,
+                              dwCreationFlags,
+                              lpEnvironment,
+                              lpCurrentDirectory,
+                              lpStartupInfo,
+                              lpProcessInformation);
 }
 
 // ----------------------------------------------------------------------------
@@ -214,62 +225,17 @@ static BOOL WINAPI Hook_CreateProcessW (LPCWSTR lpApplicationName,
                                         LPSTARTUPINFOW lpStartupInfo,
                                         LPPROCESS_INFORMATION lpProcessInformation)
 {
-    if (raybench::util::WinAPI::ReentrancyGuard<CreateProcessTag>::IsActive ())
-    {
-        return Real_CreateProcessW (lpApplicationName,
-                                    lpCommandLine,
-                                    lpProcessAttributes,
-                                    lpThreadAttributes,
-                                    bInheritHandles,
-                                    dwCreationFlags,
-                                    lpEnvironment,
-                                    lpCurrentDirectory,
-                                    lpStartupInfo,
-                                    lpProcessInformation);
-    }
-
-    ReentrancyGuard<CreateProcessTag> guard;
-
-    if (BlockInjection (lpApplicationName, lpCommandLine) == true)
-    {
-        RAYBENCH_LOG_WARNING ("Blocked reinjection to a new process: application name '{}', command line '{}'",
-                              raybench::util::string::WideToNarrow (lpApplicationName),
-                              raybench::util::string::WideToNarrow (lpCommandLine));
-        return Real_CreateProcessW (lpApplicationName,
-                                    lpCommandLine,
-                                    lpProcessAttributes,
-                                    lpThreadAttributes,
-                                    bInheritHandles,
-                                    dwCreationFlags,
-                                    lpEnvironment,
-                                    lpCurrentDirectory,
-                                    lpStartupInfo,
-                                    lpProcessInformation);
-    }
-
-    RAYBENCH_LOG_TRACE ("Reinjecting and reconnecting to a new process...");
-
-    auto winapi_dll_path = raybench::util::EnvVar::Get (raybench::util::EnvVar::winapi_dll_path);
-    if (winapi_dll_path.has_value ())
-    {
-        return raybench::util::LaunchInjectW (lpApplicationName,
-                                              lpCommandLine,
-                                              lpProcessAttributes,
-                                              lpThreadAttributes,
-                                              bInheritHandles,
-                                              dwCreationFlags,
-                                              lpEnvironment,
-                                              lpCurrentDirectory,
-                                              lpStartupInfo,
-                                              lpProcessInformation,
-                                              winapi_dll_path.value ().data ());
-    }
-    else
-    {
-        RAYBENCH_LOG_CRITICAL ("Environment variable '{}' not set",
-                               raybench::util::EnvVar::winapi_dll_path);
-        return FALSE;
-    }
+    return CreateProcessImpl (lpApplicationName,
+                              lpCommandLine,
+                              Real_CreateProcessW,
+                              lpProcessAttributes,
+                              lpThreadAttributes,
+                              bInheritHandles,
+                              dwCreationFlags,
+                              lpEnvironment,
+                              lpCurrentDirectory,
+                              lpStartupInfo,
+                              lpProcessInformation);
 }
 
 // ----------------------------------------------------------------------------
@@ -278,19 +244,22 @@ static BOOL WINAPI Hook_CreateProcessW (LPCWSTR lpApplicationName,
 /// @return True if successful, false otherwise
 export bool HookCreateProcess ()
 {
-    bool result = raybench::util::HookAPICall (&(PVOID&) Real_CreateProcessA, Hook_CreateProcessA);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook 'CreateProcessA'");
-    }
+    bool result = true;
 
-    result = raybench::util::HookAPICall (&(PVOID&) Real_CreateProcessW, Hook_CreateProcessW);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook 'CreateProcessW'");
-    }
+    auto Hook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
+        {
+            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&real_func),
+                                              reinterpret_cast<PVOID>(hook_func)))
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to hook '{}'", func_name);
+                result = false;
+            }
+        };
 
-    return true;
+    Hook (Real_CreateProcessA, Hook_CreateProcessA, "CreateProcessA"sv);
+    Hook (Real_CreateProcessW, Hook_CreateProcessW, "CreateProcessW"sv);
+
+    return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -299,22 +268,25 @@ export bool HookCreateProcess ()
 /// @return True if successful, false otherwise
 export bool UnhookCreateProcess ()
 {
-    bool result = raybench::util::UnhookAPICall (&(PVOID&) Real_CreateProcessA, Hook_CreateProcessA);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to unhook 'CreateProcessA'");
-    }
+    bool result = true;
 
-    result = raybench::util::UnhookAPICall (&(PVOID&) Real_CreateProcessW, Hook_CreateProcessW);
-    if (result == false)
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to unhook 'CreateProcessW'");
-    }
+    auto Unhook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
+        {
+            if (!raybench::util::UnhookAPICall (reinterpret_cast<PVOID*>(&real_func),
+                                                reinterpret_cast<PVOID>(hook_func)))
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to unhook '{}'", func_name);
+                result = false;
+            }
+        };
+
+    Unhook (Real_CreateProcessA, Hook_CreateProcessA, "CreateProcessA"sv);
+    Unhook (Real_CreateProcessW, Hook_CreateProcessW, "CreateProcessW"sv);
 
     Real_CreateProcessA = CreateProcessA;
     Real_CreateProcessW = CreateProcessW;
 
-    return true;
+    return result;
 }
 
 }
