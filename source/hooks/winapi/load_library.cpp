@@ -20,6 +20,15 @@ using namespace std::literals;
 namespace raybench::util::WinAPI
 {
 
+///< D3D12 dynamic-link library handle
+static HMODULE d3d12_module = nullptr;
+///< DXGI dynamic-link library handle
+static HMODULE dxgi_module = nullptr;
+///< NVAPI dynamic-link library handle
+static HMODULE nvapi_module = nullptr;
+
+// ----------------------------------------------------------------------------
+
 ///< Array of blacklisted libraries to not hook into
 constexpr std::array<std::string_view, 30> blacklisted_libraries = {
     "kernel32.dll"sv,
@@ -133,10 +142,70 @@ static bool IsBlacklisted (std::basic_string_view<CharT> path)
 
 // ----------------------------------------------------------------------------
 
+/// @brief Hook library
+/// 
+/// @param system_lib System library to check if already loaded
+/// @param hook_lib Hook library with custom hooks of system library functions
+/// @return Handle to hooked library if successful, `nullptr` otherwise
+HMODULE HookLibrary (std::string_view system_lib, std::filesystem::path hook_lib)
+{
+    HMODULE hook_module = nullptr;
+    HMODULE system_module = GetModuleHandleA (system_lib.data ());
+    if (system_module == nullptr)
+    {
+        RAYBENCH_LOG_TRACE ("Skipping unloaded dynamic-link library: {}...",
+                            system_lib);
+        return nullptr;
+    }
+
+    hook_module = Real_LoadLibraryA (hook_lib.string ().data ());
+    if (hook_module == nullptr)
+    {
+        RAYBENCH_LOG_CRITICAL ("Failed to hook {}!",
+                               hook_lib.filename ().string ());
+        return nullptr;
+    }
+
+    return hook_module;
+}
+
+// ----------------------------------------------------------------------------
+
 /// @brief Hook libraries
+/// 
+/// @return True if hooked, false otherwise
 static void HookLibraries ()
 {
-    // TODO
+    static std::filesystem::path dll_path;
+
+    if (dll_path.empty ())
+    {
+        const auto env_var = raybench::util::EnvVar::Get (raybench::util::EnvVar::winapi_dll_path);
+        if (env_var.has_value ())
+        {
+            dll_path = env_var.value ();
+        }
+        else
+        {
+            RAYBENCH_LOG_CRITICAL ("Environment variable for required dynamic-link libraries path not set!");
+            return;
+        }
+    }
+
+    if (d3d12_module == nullptr)
+    {
+        d3d12_module = HookLibrary ("d3d12.dll", dll_path / "d3d12.dll");
+    }
+
+    if (dxgi_module == nullptr)
+    {
+        dxgi_module = HookLibrary ("dxgi.dll", dll_path / "dxgi.dll");
+    }
+
+    if (nvapi_module == nullptr)
+    {
+        nvapi_module = HookLibrary ("nvapi64.dll", dll_path / "nvapi.dll");
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -173,17 +242,6 @@ static HMODULE LoadLibraryImpl (const CharT* lpFileName, Func real_func, Args...
     if (guard.GetRef () == 1)
     {
         HookLibraries ();
-
-        if constexpr (std::is_same_v<CharT, char>)
-        {
-            RAYBENCH_LOG_DEBUG ("Hooked while loading library: {}",
-                                lpFileName);
-        }
-        else
-        {
-            RAYBENCH_LOG_DEBUG ("Hooked while loading library: {}",
-                                raybench::util::string::WideToNarrow (lpFileName));
-        }
     }
 
     SetLastError (last_error);
