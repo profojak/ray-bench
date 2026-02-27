@@ -282,6 +282,11 @@ public:
                             std::format_string<Args...> fmt,
                             Args&&... args)
     {
+        if (WillOutputMessage (severity) == false)
+        {
+            return;
+        }
+
         const std::string message = std::format (fmt, std::forward<Args> (args)...);
         const std::string formatted_message = LogFormat (severity, location, message);
         if (initialized_ == true)
@@ -531,7 +536,7 @@ private:
     /// @brief Thread procedure for handling a named pipe client connection
     /// 
     /// @param lpParam Pointer to the named pipe handle for the client
-    static DWORD WINAPI ClientThreadProc(LPVOID lpParam)
+    static DWORD WINAPI ClientThreadProc (LPVOID lpParam)
     {
         RAYBENCH_LOG_TRACE ("Starting named pipe client thread...");
 
@@ -585,7 +590,7 @@ private:
                                                    named_pipe_buffer_size_,
                                                    0,
                                                    nullptr);
-            if (pipe_handle == INVALID_HANDLE_VALUE) 
+            if (pipe_handle == INVALID_HANDLE_VALUE)
             {
                 RAYBENCH_LOG_CRITICAL ("Failed to create named pipe: {}", GetLastError ());
                 return 1;
