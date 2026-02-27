@@ -145,13 +145,13 @@ static BOOL CreateProcessImpl (const CharT* lpApplicationName,
     {
         if constexpr (std::is_same_v<CharT, char>)
         {
-            RAYBENCH_LOG_WARNING ("Blocked reinjection to a new process: application name '{}', command line '{}'",
+            RAYBENCH_LOG_TRACE ("Blocking reinjection to a new process: application name {}, command line {}...",
                                   lpApplicationName ? lpApplicationName : "",
                                   lpCommandLine ? lpCommandLine : "");
         }
         else
         {
-            RAYBENCH_LOG_WARNING ("Blocked reinjection to a new process: application name '{}', command line '{}'",
+            RAYBENCH_LOG_TRACE ("Blocking reinjection to a new process: application name {}, command line {}...",
                                   lpApplicationName ? raybench::util::string::WideToNarrow (lpApplicationName) : "",
                                   lpCommandLine ? raybench::util::string::WideToNarrow (lpCommandLine) : "");
         }
