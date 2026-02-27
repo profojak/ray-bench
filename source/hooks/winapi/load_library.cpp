@@ -20,6 +20,51 @@ using namespace std::literals;
 namespace raybench::util::WinAPI
 {
 
+///< Array of blacklisted libraries to not hook into
+constexpr std::array<std::string_view, 30> blacklisted_libraries = {
+    "kernel32.dll"sv,
+    "user32.dll"sv,
+    "gdi32.dll"sv,
+    "advapi32.dll"sv,
+    "shell32.dll"sv,
+    "setupapi.dll"sv,
+    "version.dll"sv,
+    // Cryptography, security, and trust
+    "crypt32.dll"sv,
+    "wintrust.dll"sv,
+    "msasn1.dll"sv,
+    "cryptnet.dll"sv,
+    "cryptbase.dll"sv,
+    "secur32.dll"sv,
+    "bcrypt.dll"sv,
+    "wldp.dll"sv,
+    // Device and driver
+    "drvstore.dll"sv,
+    "devobj.dll"sv,
+    // Networking
+    "iphlpapi.dll"sv,
+    // Controller input
+    "xinput1_4.dll"sv,
+    "xinput9_1_0.dll"sv,
+    // Legacy multimedia
+    "winmm.dll"sv,
+    // NVIDIA PhysX
+    "pxfoundation_x64.dll"sv,
+    "physx3common_x64.dll"sv,
+    // Razer Chroma integration
+    "cchromaeditorlibrary64.dll"sv,
+    "rzchromasdk64.dll"sv,
+    // Steam
+    "steamclient64.dll"sv,
+    "gameservicessteam.dll"sv,
+    "gameoverlayrenderer.dll"sv,
+    "gameoverlayrenderer64.dll"sv,
+    // NVIDIA GeForce Now
+    "gfnruntimesdk.dll"sv
+};
+
+// ----------------------------------------------------------------------------
+
 using pfn_FreeLibrary = BOOL (WINAPI*)(HMODULE);
 using pfn_LoadLibraryA = HMODULE (WINAPI*)(LPCSTR);
 using pfn_LoadLibraryExA = HMODULE (WINAPI*)(LPCSTR, HANDLE, DWORD);
@@ -38,20 +83,52 @@ struct LoadLibraryTag
 
 // ----------------------------------------------------------------------------
 
-/// @brief Check if the dynamic-link library loads the Steam overlay
-/// @param path Dynamic-link library path
-/// @return True if it does, false otherwise
-static bool IsSteamOverlay (std::string_view path)
+/// @brief Check if the library is blacklisted and should not trigger hooking
+/// 
+/// @param input Dynamic-link library
+/// @return True if the library is blacklisted, false otherwise
+template <typename CharT>
+static bool IsBlacklisted (std::basic_string_view<CharT> path)
 {
-    return path.contains ("gameoverlayrenderer.dll") || path.contains ("gameoverlayrenderer64.dll");
-}
+    if (path.empty ())
+        return false;
 
-/// @brief Check if the dynamic-link library loads the Steam overlay
-/// @param path Dynamic-link library path
-/// @return True if it does, false otherwise
-static bool IsSteamOverlay (std::wstring_view path)
-{
-    return path.contains (L"gameoverlayrenderer.dll") || path.contains (L"gameoverlayrenderer64.dll");
+    std::string lower_name;
+    if constexpr (std::is_same_v<CharT, char>)
+    {
+        const auto pos = path.find_last_of ("\\/");
+        const auto filename = (pos == std::basic_string_view<CharT>::npos) ? path : path.substr (pos + 1);
+        lower_name = filename
+            | std::views::transform ([] (unsigned char c)
+                                     {
+                                         return static_cast<char>(std::tolower (c));
+                                     })
+            | std::ranges::to<std::string> ();
+    }
+    else
+    {
+        const auto pos = path.find_last_of (L"\\/");
+        const auto filename = (pos == std::basic_string_view<CharT>::npos) ? path : path.substr (pos + 1);
+        lower_name = raybench::util::string::WideToNarrow (filename)
+            | std::views::transform ([] (unsigned char c)
+                                     {
+                                         return static_cast<char>(std::tolower (c));
+                                     })
+            | std::ranges::to<std::string> ();
+    }
+
+    // Ignore Windows API Set forwarders
+    if (lower_name.starts_with ("api-ms-win-"))
+        return true;
+
+    // Check against the blacklist array
+    for (const auto& lib : blacklisted_libraries)
+    {
+        if (lower_name == lib)
+            return true;
+    }
+
+    return false;
 }
 
 // ----------------------------------------------------------------------------
@@ -68,17 +145,27 @@ static void HookLibraries ()
 template <typename CharT, typename Func, typename... Args>
 static HMODULE LoadLibraryImpl (const CharT* lpFileName, Func real_func, Args... args)
 {
-    if (lpFileName && IsSteamOverlay (lpFileName))
-    {
-        return 0;
-    }
-
     if (ReentrancyGuard<LoadLibraryTag>::IsActive ())
     {
         return real_func (lpFileName, args...);
     }
 
     ReentrancyGuard<LoadLibraryTag> guard;
+
+    if (IsBlacklisted<CharT> (lpFileName))
+    {
+        if constexpr (std::is_same_v<CharT, char>)
+        {
+            RAYBENCH_LOG_TRACE ("Blocking hooking while loading library: {}...",
+                                lpFileName);
+        }
+        else
+        {
+            RAYBENCH_LOG_TRACE ("Blocking hooking while loading library: {}...",
+                                raybench::util::string::WideToNarrow (lpFileName));
+        }
+        return real_func (lpFileName, args...);
+    }
 
     HMODULE module = real_func (lpFileName, args...);
     DWORD last_error = GetLastError ();
@@ -89,12 +176,12 @@ static HMODULE LoadLibraryImpl (const CharT* lpFileName, Func real_func, Args...
 
         if constexpr (std::is_same_v<CharT, char>)
         {
-            RAYBENCH_LOG_TRACE ("Hooked libraries while loading DLL {}...",
+            RAYBENCH_LOG_DEBUG ("Hooked while loading library: {}",
                                 lpFileName);
         }
         else
         {
-            RAYBENCH_LOG_TRACE ("Hooked libraries while loading DLL {}...",
+            RAYBENCH_LOG_DEBUG ("Hooked while loading library: {}",
                                 raybench::util::string::WideToNarrow (lpFileName));
         }
     }
@@ -201,7 +288,7 @@ export bool UnhookLoadLibrary ()
     auto Unhook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
         {
             if (!raybench::util::UnhookAPICall (reinterpret_cast<PVOID*>(&real_func),
-                                              reinterpret_cast<PVOID>(hook_func)))
+                                                reinterpret_cast<PVOID>(hook_func)))
             {
                 RAYBENCH_LOG_CRITICAL ("Failed to unhook '{}'", func_name);
                 result = false;
