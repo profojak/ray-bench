@@ -12,9 +12,10 @@ import std;
 import RayBench.Util;
 import RayBench.WinAPI;
 
-// Ensure the DLL has an exported function to avoid linker errors
-extern "C" __declspec(dllexport) void DummyDLLFunction ()
-{}
+extern "C" __declspec(dllexport) bool Hook ()
+{
+    return true;
+}
 
 BOOL APIENTRY DllMain (HMODULE /*hModule*/,
                        DWORD  ul_reason_for_call,
@@ -34,7 +35,7 @@ BOOL APIENTRY DllMain (HMODULE /*hModule*/,
             raybench::util::WinAPI::HookCreateProcess ();
             raybench::util::WinAPI::HookLoadLibrary ();
 
-            RAYBENCH_LOG_INFO ("Hooked Windows API calls");
+            RAYBENCH_LOG_INFO ("Hooked win32.dll API calls with hooks from ray-bench-winapi.dll");
         }
         case DLL_PROCESS_DETACH:
         case DLL_THREAD_DETACH:

@@ -6,6 +6,9 @@
     <Project Path="source/core/util/util.vcxproj" Id="3f538997-485d-48a5-a684-2c557dac9a70" />
   </Folder>
   <Folder Name="/Hooks/">
+    <Project Path="source/hooks/d3d12/d3d12.vcxproj" Id="ef7b065b-7603-42af-881d-8f881776a052" />
+    <Project Path="source/hooks/dxgi/dxgi.vcxproj" Id="9a63afa7-5882-491d-9218-16847350c6b1" />
+    <Project Path="source/hooks/nvapi/nvapi.vcxproj" Id="0252c5ae-c2da-4f2c-86ad-49aace31a71e" />
     <Project Path="source/hooks/winapi/winapi.vcxproj" Id="f9f5cdb0-1c9a-4854-881e-a01acc4f5738" />
   </Folder>
   <Folder Name="/Tools/">

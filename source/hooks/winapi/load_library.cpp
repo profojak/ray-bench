@@ -79,6 +79,7 @@ using pfn_LoadLibraryA = HMODULE (WINAPI*)(LPCSTR);
 using pfn_LoadLibraryExA = HMODULE (WINAPI*)(LPCSTR, HANDLE, DWORD);
 using pfn_LoadLibraryW = HMODULE (WINAPI*)(LPCWSTR);
 using pfn_LoadLibraryExW = HMODULE (WINAPI*)(LPCWSTR, HANDLE, DWORD);
+using pfn_Hook = bool (*)();
 
 pfn_FreeLibrary Real_FreeLibrary = FreeLibrary;
 pfn_LoadLibraryA Real_LoadLibraryA = LoadLibraryA;
@@ -158,13 +159,33 @@ HMODULE HookLibrary (std::string_view system_lib, std::filesystem::path hook_lib
         return nullptr;
     }
 
+    const auto& hook_filename = hook_lib.filename ().string ();
     hook_module = Real_LoadLibraryA (hook_lib.string ().data ());
     if (hook_module == nullptr)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook {}!",
-                               hook_lib.filename ().string ());
+        RAYBENCH_LOG_CRITICAL ("Failed to load {}: {}!",
+                               hook_filename, GetLastError ());
         return nullptr;
     }
+
+    pfn_Hook hook_func = reinterpret_cast<pfn_Hook> (GetProcAddress (hook_module, "Hook"));
+    if (hook_func == nullptr)
+    {
+        RAYBENCH_LOG_CRITICAL ("{} does not export 'Hook' function!",
+                               hook_filename);
+        return nullptr;
+    }
+
+    bool result = hook_func ();
+    if (result == false)
+    {
+        RAYBENCH_LOG_CRITICAL ("Failed to hook {}!",
+                               hook_filename);
+        return nullptr;
+    }
+
+    RAYBENCH_LOG_INFO ("Hooked {} API calls with hooks from {}",
+                       system_lib, hook_filename);
 
     return hook_module;
 }
@@ -183,7 +204,7 @@ static void HookLibraries ()
         const auto env_var = raybench::util::EnvVar::Get (raybench::util::EnvVar::winapi_dll_path);
         if (env_var.has_value ())
         {
-            dll_path = env_var.value ();
+            dll_path = std::filesystem::path (env_var.value ()).parent_path ();
         }
         else
         {
@@ -194,17 +215,17 @@ static void HookLibraries ()
 
     if (d3d12_module == nullptr)
     {
-        d3d12_module = HookLibrary ("d3d12.dll", dll_path / "d3d12.dll");
+        d3d12_module = HookLibrary ("d3d12.dll", dll_path / "ray-bench-d3d12.dll");
     }
 
     if (dxgi_module == nullptr)
     {
-        dxgi_module = HookLibrary ("dxgi.dll", dll_path / "dxgi.dll");
+        dxgi_module = HookLibrary ("dxgi.dll", dll_path / "ray-bench-dxgi.dll");
     }
 
     if (nvapi_module == nullptr)
     {
-        nvapi_module = HookLibrary ("nvapi64.dll", dll_path / "nvapi.dll");
+        nvapi_module = HookLibrary ("nvapi64.dll", dll_path / "ray-bench-nvapi.dll");
     }
 }
 
