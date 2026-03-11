@@ -15,11 +15,14 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="directx12_wrap.cpp">
+    <ClCompile Include="directx12_hook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="hook.ixx">
       <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="directx12_pfn.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

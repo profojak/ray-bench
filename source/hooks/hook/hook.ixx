@@ -4,6 +4,7 @@
 
 export module RayBench.Hook;
 
-export import :DirectX12;
+export import :DirectX12.Hook;
+export import :DirectX12.Pfn;
 
 // ----------------------------------------------------------------------------
