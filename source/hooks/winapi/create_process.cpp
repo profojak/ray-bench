@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief `CreateProcess` hooks
 
@@ -68,7 +68,7 @@ pfn_CreateProcessW Real_CreateProcessW = CreateProcessW;
 struct CreateProcessTag
 {};
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Check if the process is blacklisted
 /// 
@@ -125,7 +125,7 @@ export template <typename CharT>
     return Check (application_name) || Check (command_line);
 }
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Common implementation for `CreateProcess` hooks
 template <typename CharT, typename Func, typename... Args>

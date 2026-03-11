@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Environment variable utilities
 
@@ -26,7 +26,7 @@ export constexpr std::string_view log_settings = "RAYBENCH_LOG_SETTINGS";
 ///< Environment variable name for WinAPI dynamic-link library path
 export constexpr std::string_view winapi_dll_path = "RAYBENCH_WINAPI_DLL_PATH";
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Set an environment variable
 /// 

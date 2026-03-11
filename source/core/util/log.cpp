@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Logging utility
 
@@ -231,7 +231,7 @@ public:
         }
     }
 
-    // ------------------------------------------------------------------------
+    // ========================================================================
 
     /// @brief Connect to the named pipe for inter process communication
     /// 
@@ -267,7 +267,7 @@ public:
         }
     }
 
-    // ------------------------------------------------------------------------
+    // ========================================================================
 
     /// @brief Log a message
     /// 
@@ -407,8 +407,14 @@ public:
 
 private:
 
-    // ------------------------------------------------------------------------
+    // ========================================================================
 
+    /// @brief Format the log message with severity and source location info
+    /// 
+    /// @param severity Severity level
+    /// @param location Source location information
+    /// @param message Log message
+    /// @return Formatted log message string
     static [[nodiscard]] std::string LogFormat (Severity severity,
                                                 const std::source_location& location,
                                                 std::string_view message)
@@ -531,7 +537,7 @@ private:
         }
     }
 
-    // ------------------------------------------------------------------------
+    // ========================================================================
 
     /// @brief Thread procedure for handling a named pipe client connection
     /// 
@@ -625,7 +631,7 @@ private:
         }
     }
 
-    // ------------------------------------------------------------------------
+    // ========================================================================
 
     ///< Logger settings
     inline static Settings settings_;

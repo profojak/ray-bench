@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief `LoadLibrary` hooks
 
@@ -91,7 +91,7 @@ pfn_LoadLibraryExW Real_LoadLibraryExW = LoadLibraryExW;
 struct LoadLibraryTag
 {};
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Check if the library is blacklisted and should not trigger hooking
 /// 
@@ -229,7 +229,7 @@ static void HookLibraries ()
     }
 }
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Common implementation for 'LoadLibrary' hooks
 template <typename CharT, typename Func, typename... Args>

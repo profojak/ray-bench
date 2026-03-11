@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Utility for dynamic-link library injection
 
@@ -34,7 +34,7 @@ struct CreateProcessInfo
     std::filesystem::path app_directory;
 };
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Parse the full command line of a process to extract its information
 /// 
@@ -203,7 +203,7 @@ bool InjectLoadDLL (HANDLE process_handle, LPCSTR dll)
     return true;
 }
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Launch a process and inject dynamic-link library into it
 export BOOL LaunchInjectA (LPCSTR lpApplicationName,
@@ -253,6 +253,8 @@ export BOOL LaunchInjectA (LPCSTR lpApplicationName,
     return result;
 }
 
+// ----------------------------------------------------------------------------
+
 /// @brief Launch a process and inject dynamic-link library into it
 export BOOL LaunchInjectW (LPCWSTR lpApplicationName,
                            LPWSTR lpCommandLine,
@@ -300,6 +302,8 @@ export BOOL LaunchInjectW (LPCWSTR lpApplicationName,
 
     return result;
 }
+
+// ----------------------------------------------------------------------------
 
 /// @brief Launch a process and inject dynamic-link library into it
 /// 

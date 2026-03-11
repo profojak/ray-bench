@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Entry point for injecting dynamic-link libraries into target
 ///        application
@@ -11,7 +11,7 @@ import RayBench.Util;
 ///< Command line options
 constexpr const char* options = "-h|--help";
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Print help message for the inject tool
 /// 
