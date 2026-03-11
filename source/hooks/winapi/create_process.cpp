@@ -61,8 +61,8 @@ using pfn_CreateProcessW = BOOL (WINAPI*)(LPCWSTR,
                                           LPSTARTUPINFOW,
                                           LPPROCESS_INFORMATION);
 
-pfn_CreateProcessA Real_CreateProcessA = CreateProcessA;
-pfn_CreateProcessW Real_CreateProcessW = CreateProcessW;
+pfn_CreateProcessA Original_CreateProcessA = CreateProcessA;
+pfn_CreateProcessW Original_CreateProcessW = CreateProcessW;
 
 ///< `HookTag` for re-entrancy guard of `CreateProcess` hooks
 struct CreateProcessTag
@@ -185,7 +185,7 @@ static BOOL CreateProcessImpl (const CharT* lpApplicationName,
 /// @brief Create a new process and its primary thread
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
-static BOOL WINAPI Hook_CreateProcessA (LPCSTR lpApplicationName,
+static BOOL WINAPI Hooked_CreateProcessA (LPCSTR lpApplicationName,
                                         LPSTR lpCommandLine,
                                         LPSECURITY_ATTRIBUTES lpProcessAttributes,
                                         LPSECURITY_ATTRIBUTES lpThreadAttributes,
@@ -198,7 +198,7 @@ static BOOL WINAPI Hook_CreateProcessA (LPCSTR lpApplicationName,
 {
     return CreateProcessImpl (lpApplicationName,
                               lpCommandLine,
-                              Real_CreateProcessA,
+                              Original_CreateProcessA,
                               lpProcessAttributes,
                               lpThreadAttributes,
                               bInheritHandles,
@@ -214,7 +214,7 @@ static BOOL WINAPI Hook_CreateProcessA (LPCSTR lpApplicationName,
 /// @brief Create a new process and its primary thread
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw
-static BOOL WINAPI Hook_CreateProcessW (LPCWSTR lpApplicationName,
+static BOOL WINAPI Hooked_CreateProcessW (LPCWSTR lpApplicationName,
                                         LPWSTR lpCommandLine,
                                         LPSECURITY_ATTRIBUTES lpProcessAttributes,
                                         LPSECURITY_ATTRIBUTES lpThreadAttributes,
@@ -227,7 +227,7 @@ static BOOL WINAPI Hook_CreateProcessW (LPCWSTR lpApplicationName,
 {
     return CreateProcessImpl (lpApplicationName,
                               lpCommandLine,
-                              Real_CreateProcessW,
+                              Original_CreateProcessW,
                               lpProcessAttributes,
                               lpThreadAttributes,
                               bInheritHandles,
@@ -256,8 +256,8 @@ export bool HookCreateProcess ()
             }
         };
 
-    Hook (Real_CreateProcessA, Hook_CreateProcessA, "CreateProcessA"sv);
-    Hook (Real_CreateProcessW, Hook_CreateProcessW, "CreateProcessW"sv);
+    Hook (Original_CreateProcessA, Hooked_CreateProcessA, "CreateProcessA"sv);
+    Hook (Original_CreateProcessW, Hooked_CreateProcessW, "CreateProcessW"sv);
 
     return result;
 }
@@ -280,11 +280,11 @@ export bool UnhookCreateProcess ()
             }
         };
 
-    Unhook (Real_CreateProcessA, Hook_CreateProcessA, "CreateProcessA"sv);
-    Unhook (Real_CreateProcessW, Hook_CreateProcessW, "CreateProcessW"sv);
+    Unhook (Original_CreateProcessA, Hooked_CreateProcessA, "CreateProcessA"sv);
+    Unhook (Original_CreateProcessW, Hooked_CreateProcessW, "CreateProcessW"sv);
 
-    Real_CreateProcessA = CreateProcessA;
-    Real_CreateProcessW = CreateProcessW;
+    Original_CreateProcessA = CreateProcessA;
+    Original_CreateProcessW = CreateProcessW;
 
     return result;
 }

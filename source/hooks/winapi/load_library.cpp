@@ -81,11 +81,11 @@ using pfn_LoadLibraryW = HMODULE (WINAPI*)(LPCWSTR);
 using pfn_LoadLibraryExW = HMODULE (WINAPI*)(LPCWSTR, HANDLE, DWORD);
 using pfn_Hook = bool (*)();
 
-pfn_FreeLibrary Real_FreeLibrary = FreeLibrary;
-pfn_LoadLibraryA Real_LoadLibraryA = LoadLibraryA;
-pfn_LoadLibraryExA Real_LoadLibraryExA = LoadLibraryExA;
-pfn_LoadLibraryW Real_LoadLibraryW = LoadLibraryW;
-pfn_LoadLibraryExW Real_LoadLibraryExW = LoadLibraryExW;
+pfn_FreeLibrary Original_FreeLibrary = FreeLibrary;
+pfn_LoadLibraryA Original_LoadLibraryA = LoadLibraryA;
+pfn_LoadLibraryExA Original_LoadLibraryExA = LoadLibraryExA;
+pfn_LoadLibraryW Original_LoadLibraryW = LoadLibraryW;
+pfn_LoadLibraryExW Original_LoadLibraryExW = LoadLibraryExW;
 
 ///< `HookTag` for re-entrancy guard of `CreateProcess` hooks
 struct LoadLibraryTag
@@ -160,7 +160,7 @@ HMODULE HookLibrary (std::string_view system_lib, std::filesystem::path hook_lib
     }
 
     const auto& hook_filename = hook_lib.filename ().string ();
-    hook_module = Real_LoadLibraryA (hook_lib.string ().data ());
+    hook_module = Original_LoadLibraryA (hook_lib.string ().data ());
     if (hook_module == nullptr)
     {
         RAYBENCH_LOG_CRITICAL ("Failed to load {}: {}!",
@@ -268,9 +268,9 @@ static HMODULE LoadLibraryImpl (const CharT* lpFileName, Func real_func, Args...
 ///        decrement its reference count
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-freelibrary
-static BOOL Hook_FreeLibrary (HMODULE hLibModule)
+static BOOL Hooked_FreeLibrary (HMODULE hLibModule)
 {
-    return Real_FreeLibrary (hLibModule);
+    return Original_FreeLibrary (hLibModule);
 }
 
 // ----------------------------------------------------------------------------
@@ -279,9 +279,9 @@ static BOOL Hook_FreeLibrary (HMODULE hLibModule)
 ///        process
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya
-static HMODULE Hook_LoadLibraryA (LPCSTR lpLibFileName)
+static HMODULE Hooked_LoadLibraryA (LPCSTR lpLibFileName)
 {
-    return LoadLibraryImpl (lpLibFileName, Real_LoadLibraryA);
+    return LoadLibraryImpl (lpLibFileName, Original_LoadLibraryA);
 }
 
 // ----------------------------------------------------------------------------
@@ -290,11 +290,11 @@ static HMODULE Hook_LoadLibraryA (LPCSTR lpLibFileName)
 ///        process
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexa
-static HMODULE Hook_LoadLibraryExA (LPCSTR lpLibFileName,
+static HMODULE Hooked_LoadLibraryExA (LPCSTR lpLibFileName,
                                     HANDLE hFile,
                                     DWORD  dwFlags)
 {
-    return LoadLibraryImpl (lpLibFileName, Real_LoadLibraryExA, hFile, dwFlags);
+    return LoadLibraryImpl (lpLibFileName, Original_LoadLibraryExA, hFile, dwFlags);
 }
 
 // ----------------------------------------------------------------------------
@@ -303,9 +303,9 @@ static HMODULE Hook_LoadLibraryExA (LPCSTR lpLibFileName,
 ///        process
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryw
-static HMODULE Hook_LoadLibraryW (LPCWSTR lpLibFileName)
+static HMODULE Hooked_LoadLibraryW (LPCWSTR lpLibFileName)
 {
-    return LoadLibraryImpl (lpLibFileName, Real_LoadLibraryW);
+    return LoadLibraryImpl (lpLibFileName, Original_LoadLibraryW);
 }
 
 // ----------------------------------------------------------------------------
@@ -314,11 +314,11 @@ static HMODULE Hook_LoadLibraryW (LPCWSTR lpLibFileName)
 ///        process
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw
-static HMODULE Hook_LoadLibraryExW (LPCWSTR lpLibFileName,
+static HMODULE Hooked_LoadLibraryExW (LPCWSTR lpLibFileName,
                                     HANDLE  hFile,
                                     DWORD   dwFlags)
 {
-    return LoadLibraryImpl (lpLibFileName, Real_LoadLibraryExW, hFile, dwFlags);
+    return LoadLibraryImpl (lpLibFileName, Original_LoadLibraryExW, hFile, dwFlags);
 }
 
 // ----------------------------------------------------------------------------
@@ -339,11 +339,11 @@ export bool HookLoadLibrary ()
             }
         };
 
-    Hook (Real_FreeLibrary, Hook_FreeLibrary, "FreeLibrary"sv);
-    Hook (Real_LoadLibraryA, Hook_LoadLibraryA, "LoadLibraryA"sv);
-    Hook (Real_LoadLibraryExA, Hook_LoadLibraryExA, "LoadLibraryExA"sv);
-    Hook (Real_LoadLibraryW, Hook_LoadLibraryW, "LoadLibraryW"sv);
-    Hook (Real_LoadLibraryExW, Hook_LoadLibraryExW, "LoadLibraryExW"sv);
+    Hook (Original_FreeLibrary, Hooked_FreeLibrary, "FreeLibrary"sv);
+    Hook (Original_LoadLibraryA, Hooked_LoadLibraryA, "LoadLibraryA"sv);
+    Hook (Original_LoadLibraryExA, Hooked_LoadLibraryExA, "LoadLibraryExA"sv);
+    Hook (Original_LoadLibraryW, Hooked_LoadLibraryW, "LoadLibraryW"sv);
+    Hook (Original_LoadLibraryExW, Hooked_LoadLibraryExW, "LoadLibraryExW"sv);
 
     return result;
 }
@@ -366,17 +366,17 @@ export bool UnhookLoadLibrary ()
             }
         };
 
-    Unhook (Real_FreeLibrary, Hook_FreeLibrary, "FreeLibrary"sv);
-    Unhook (Real_LoadLibraryA, Hook_LoadLibraryA, "LoadLibraryA"sv);
-    Unhook (Real_LoadLibraryExA, Hook_LoadLibraryExA, "LoadLibraryExA"sv);
-    Unhook (Real_LoadLibraryW, Hook_LoadLibraryW, "LoadLibraryW"sv);
-    Unhook (Real_LoadLibraryExW, Hook_LoadLibraryExW, "LoadLibraryExW"sv);
+    Unhook (Original_FreeLibrary, Hooked_FreeLibrary, "FreeLibrary"sv);
+    Unhook (Original_LoadLibraryA, Hooked_LoadLibraryA, "LoadLibraryA"sv);
+    Unhook (Original_LoadLibraryExA, Hooked_LoadLibraryExA, "LoadLibraryExA"sv);
+    Unhook (Original_LoadLibraryW, Hooked_LoadLibraryW, "LoadLibraryW"sv);
+    Unhook (Original_LoadLibraryExW, Hooked_LoadLibraryExW, "LoadLibraryExW"sv);
 
-    Real_FreeLibrary = FreeLibrary;
-    Real_LoadLibraryA = LoadLibraryA;
-    Real_LoadLibraryExA = LoadLibraryExA;
-    Real_LoadLibraryW = LoadLibraryW;
-    Real_LoadLibraryExW = LoadLibraryExW;
+    Original_FreeLibrary = FreeLibrary;
+    Original_LoadLibraryA = LoadLibraryA;
+    Original_LoadLibraryExA = LoadLibraryExA;
+    Original_LoadLibraryW = LoadLibraryW;
+    Original_LoadLibraryExW = LoadLibraryExW;
 
     return result;
 }
