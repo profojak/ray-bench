@@ -6,6 +6,7 @@
     <Project Path="source/core/util/util.vcxproj" Id="3f538997-485d-48a5-a684-2c557dac9a70" />
   </Folder>
   <Folder Name="/Hooks/">
+    <Project Path="source/hooks/hook/hook.vcxproj" Id="832bbabb-8bba-427f-8fd5-cc23c715f916" />
     <Project Path="source/hooks/payload/payload.vcxproj" Id="f9f5cdb0-1c9a-4854-881e-a01acc4f5738" />
   </Folder>
   <Folder Name="/Tools/">
