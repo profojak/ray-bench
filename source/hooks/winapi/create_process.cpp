@@ -145,20 +145,20 @@ static BOOL CreateProcessImpl (const CharT* lpApplicationName,
     {
         if constexpr (std::is_same_v<CharT, char>)
         {
-            RAYBENCH_LOG_TRACE ("Blocking reinjection to a new process: application name {}, command line {}...",
-                                  lpApplicationName ? lpApplicationName : "",
-                                  lpCommandLine ? lpCommandLine : "");
+            RAYBENCH_LOG_TRACE_ONCE ("Blocking reinjection to a new process: application name {}, command line {}...",
+                                     lpApplicationName ? lpApplicationName : "",
+                                     lpCommandLine ? lpCommandLine : "");
         }
         else
         {
-            RAYBENCH_LOG_TRACE ("Blocking reinjection to a new process: application name {}, command line {}...",
-                                  lpApplicationName ? raybench::util::string::WideToNarrow (lpApplicationName) : "",
-                                  lpCommandLine ? raybench::util::string::WideToNarrow (lpCommandLine) : "");
+            RAYBENCH_LOG_TRACE_ONCE ("Blocking reinjection to a new process: application name {}, command line {}...",
+                                     lpApplicationName ? raybench::util::string::WideToNarrow (lpApplicationName) : "",
+                                     lpCommandLine ? raybench::util::string::WideToNarrow (lpCommandLine) : "");
         }
         return real_func (lpApplicationName, lpCommandLine, args...);
     }
 
-    RAYBENCH_LOG_TRACE ("Reinjecting and reconnecting to a new process...");
+    RAYBENCH_LOG_TRACE_ONCE ("Reinjecting and reconnecting to a new process...");
 
     auto winapi_dll_path = raybench::util::EnvVar::Get (raybench::util::EnvVar::winapi_dll_path);
     if (winapi_dll_path.has_value ())

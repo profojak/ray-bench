@@ -244,16 +244,8 @@ static HMODULE LoadLibraryImpl (const CharT* lpFileName, Func real_func, Args...
 
     if (IsBlacklisted<CharT> (lpFileName))
     {
-        if constexpr (std::is_same_v<CharT, char>)
-        {
-            RAYBENCH_LOG_TRACE ("Blocking hooking while loading library: {}...",
-                                lpFileName);
-        }
-        else
-        {
-            RAYBENCH_LOG_TRACE ("Blocking hooking while loading library: {}...",
-                                raybench::util::string::WideToNarrow (lpFileName));
-        }
+        RAYBENCH_LOG_TRACE_ONCE ("Blocking hooking while loading library: process ID {}...",
+                                 GetProcessId (GetCurrentProcess ()));
         return real_func (lpFileName, args...);
     }
 
