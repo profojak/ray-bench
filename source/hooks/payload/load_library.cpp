@@ -12,6 +12,7 @@ module;
 
 export module RayBench.Payload:HookLoadLibrary;
 
+import RayBench.Hook;
 import RayBench.Util;
 import :Guard;
 
@@ -20,12 +21,12 @@ using namespace std::literals;
 namespace raybench::payload
 {
 
-///< D3D12 dynamic-link library hook flag
-static bool hooked_d3d12_module = false;
-///< DXGI dynamic-link library hook flag
-static bool hooked_dxgi_module = false;
-///< NVAPI dynamic-link library hook flag
-static bool hooked_nvapi_module = false;
+///< D3D12 dynamic-link library handle
+static HMODULE d3d12_module = nullptr;
+///< DXGI dynamic-link library handle
+static HMODULE dxgi_module = nullptr;
+///< NVAPI dynamic-link library handle
+static HMODULE nvapi_module = nullptr;
 
 // ----------------------------------------------------------------------------
 
@@ -143,14 +144,12 @@ static bool IsBlacklisted (std::basic_string_view<CharT> path)
 
 // ----------------------------------------------------------------------------
 
-/// @brief Hook library
+/// @brief Hook API calls if library is already loaded
 /// 
 /// @param system_lib System library to check if already loaded
-/// @param hook_lib Hook library with custom hooks of system library functions
 /// @return Handle to hooked library if successful, `nullptr` otherwise
-HMODULE HookLibrary (std::string_view system_lib, std::filesystem::path hook_lib)
+HMODULE HookLibrary (std::string_view system_lib)
 {
-    HMODULE hook_module = nullptr;
     HMODULE system_module = GetModuleHandleA (system_lib.data ());
     if (system_module == nullptr)
     {
@@ -159,35 +158,38 @@ HMODULE HookLibrary (std::string_view system_lib, std::filesystem::path hook_lib
         return nullptr;
     }
 
-    const auto& hook_filename = hook_lib.filename ().string ();
-    hook_module = Original_LoadLibraryA (hook_lib.string ().data ());
-    if (hook_module == nullptr)
+    pfn_Hook hook_func = nullptr;
+    if (system_lib == "d3d12.dll"sv)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to load {}: {}!",
-                               hook_filename, GetLastError ());
-        return nullptr;
+        // TODO: Hook something!
+        return system_module;
     }
-
-    pfn_Hook hook_func = reinterpret_cast<pfn_Hook> (GetProcAddress (hook_module, "Hook"));
-    if (hook_func == nullptr)
+    else if (system_lib == "dxgi.dll"sv)
     {
-        RAYBENCH_LOG_CRITICAL ("{} does not export 'Hook' function!",
-                               hook_filename);
+        hook_func = reinterpret_cast<pfn_Hook>(raybench::hook::HookCreateDXGIFactory);
+    }
+    else if (system_lib == "nvapi64.dll"sv)
+    {
+        // TODO: Hook something!
+        return system_module;
+    }
+    else
+    {
         return nullptr;
     }
 
     bool result = hook_func ();
     if (result == false)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook {}!",
-                               hook_filename);
+        RAYBENCH_LOG_CRITICAL ("Failed to hook {} API calls!",
+                               system_lib);
         return nullptr;
     }
 
-    RAYBENCH_LOG_INFO ("Hooked {} API calls with hooks from {}",
-                       system_lib, hook_filename);
+    RAYBENCH_LOG_DEBUG ("Hooked {} API calls",
+                       system_lib);
 
-    return hook_module;
+    return system_module;
 }
 
 // ----------------------------------------------------------------------------
@@ -213,19 +215,19 @@ static void HookLibraries ()
         }
     }
 
-    if (hooked_d3d12_module == false)
+    if (d3d12_module == nullptr)
     {
-        // TODO
+        d3d12_module = HookLibrary ("d3d12.dll");
     }
 
-    if (hooked_dxgi_module == false)
+    if (dxgi_module == nullptr)
     {
-        // TODO
+        dxgi_module = HookLibrary ("dxgi.dll");
     }
 
-    if (hooked_nvapi_module == false)
+    if (nvapi_module == nullptr)
     {
-        // TODO
+        nvapi_module = HookLibrary ("nvapi64.dll");
     }
 }
 
@@ -291,8 +293,8 @@ static HMODULE Hooked_LoadLibraryA (LPCSTR lpLibFileName)
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexa
 static HMODULE Hooked_LoadLibraryExA (LPCSTR lpLibFileName,
-                                    HANDLE hFile,
-                                    DWORD  dwFlags)
+                                      HANDLE hFile,
+                                      DWORD  dwFlags)
 {
     return LoadLibraryImpl (lpLibFileName, Original_LoadLibraryExA, hFile, dwFlags);
 }
@@ -315,13 +317,13 @@ static HMODULE Hooked_LoadLibraryW (LPCWSTR lpLibFileName)
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw
 static HMODULE Hooked_LoadLibraryExW (LPCWSTR lpLibFileName,
-                                    HANDLE  hFile,
-                                    DWORD   dwFlags)
+                                      HANDLE  hFile,
+                                      DWORD   dwFlags)
 {
     return LoadLibraryImpl (lpLibFileName, Original_LoadLibraryExW, hFile, dwFlags);
 }
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Hook `LoadLibrary` API calls
 /// @return True if successful, false otherwise

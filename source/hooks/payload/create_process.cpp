@@ -238,7 +238,7 @@ static BOOL WINAPI Hooked_CreateProcessW (LPCWSTR lpApplicationName,
                               lpProcessInformation);
 }
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 /// @brief Hook `CreateProcess` API calls
 /// @return True if successful, false otherwise
