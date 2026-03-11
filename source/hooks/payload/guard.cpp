@@ -2,11 +2,11 @@
 
 /// @brief Re-entrancy guard for Windows API hooks
 
-export module RayBench.WinAPI:Guard;
+export module RayBench.Payload:Guard;
 
 import std;
 
-namespace raybench::util::WinAPI
+namespace raybench::payload
 {
 
 /// @brief Re-entrancy guard for Windows API hooks to prevent inifinite

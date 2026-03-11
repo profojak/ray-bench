@@ -1,8 +1,8 @@
-// ----------------------------------------------------------------------------
+// ============================================================================
 
-/// @brief Windows API hooks module interface
+/// @brief API hooks payload module interface
 
-export module RayBench.WinAPI;
+export module RayBench.Payload;
 
 export import :HookCreateProcess;
 export import :HookLoadLibrary;

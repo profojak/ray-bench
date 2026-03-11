@@ -72,7 +72,7 @@ int main (int argc, const char** argv)
                         args.GetPositionalArguments ().front ());
 
     // Ensure the required dynamic-link library exists before attempting injection
-    std::filesystem::path dll_path = std::filesystem::path (argv[0]).parent_path () / "ray-bench-winapi.dll";
+    std::filesystem::path dll_path = std::filesystem::path (argv[0]).parent_path () / "ray-bench-payload.dll";
     if (std::filesystem::exists (dll_path) == false)
     {
         RAYBENCH_LOG_CRITICAL ("Required dynamic-link library not found for injection: {}",

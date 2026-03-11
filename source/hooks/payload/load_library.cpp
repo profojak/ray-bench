@@ -10,22 +10,22 @@ module;
 
 #include "util/log.h"
 
-export module RayBench.WinAPI:HookLoadLibrary;
+export module RayBench.Payload:HookLoadLibrary;
 
 import RayBench.Util;
 import :Guard;
 
 using namespace std::literals;
 
-namespace raybench::util::WinAPI
+namespace raybench::payload
 {
 
-///< D3D12 dynamic-link library handle
-static HMODULE d3d12_module = nullptr;
-///< DXGI dynamic-link library handle
-static HMODULE dxgi_module = nullptr;
-///< NVAPI dynamic-link library handle
-static HMODULE nvapi_module = nullptr;
+///< D3D12 dynamic-link library hook flag
+static bool hooked_d3d12_module = false;
+///< DXGI dynamic-link library hook flag
+static bool hooked_dxgi_module = false;
+///< NVAPI dynamic-link library hook flag
+static bool hooked_nvapi_module = false;
 
 // ----------------------------------------------------------------------------
 
@@ -213,19 +213,19 @@ static void HookLibraries ()
         }
     }
 
-    if (d3d12_module == nullptr)
+    if (hooked_d3d12_module == false)
     {
-        d3d12_module = HookLibrary ("d3d12.dll", dll_path / "ray-bench-d3d12.dll");
+        // TODO
     }
 
-    if (dxgi_module == nullptr)
+    if (hooked_dxgi_module == false)
     {
-        dxgi_module = HookLibrary ("dxgi.dll", dll_path / "ray-bench-dxgi.dll");
+        // TODO
     }
 
-    if (nvapi_module == nullptr)
+    if (hooked_nvapi_module == false)
     {
-        nvapi_module = HookLibrary ("nvapi64.dll", dll_path / "ray-bench-nvapi.dll");
+        // TODO
     }
 }
 

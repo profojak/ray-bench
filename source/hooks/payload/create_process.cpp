@@ -10,7 +10,7 @@ module;
 
 #include "util/log.h"
 
-export module RayBench.WinAPI:HookCreateProcess;
+export module RayBench.Payload:HookCreateProcess;
 
 import std;
 import RayBench.Util;
@@ -18,7 +18,7 @@ import :Guard;
 
 using namespace std::literals;
 
-namespace raybench::util::WinAPI
+namespace raybench::payload
 {
 
 ///< Array of blacklisted processes to reinject into

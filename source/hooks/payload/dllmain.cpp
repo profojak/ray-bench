@@ -1,6 +1,6 @@
 // ============================================================================
 
-/// @brief Entry point of dynamic-link library for Windows API hooks
+/// @brief Entry point of dynamic-link library payload for API hooks
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -9,14 +9,17 @@
 #include "util/log.h"
 
 import std;
+import RayBench.Payload;
 import RayBench.Util;
-import RayBench.WinAPI;
 
 extern "C" __declspec(dllexport) bool Hook ()
 {
     return true;
 }
 
+// ============================================================================
+
+/// @brief Entry point of the payload DLL
 BOOL APIENTRY DllMain (HMODULE /*hModule*/,
                        DWORD  ul_reason_for_call,
                        LPVOID /*lpReserved*/)
@@ -32,10 +35,10 @@ BOOL APIENTRY DllMain (HMODULE /*hModule*/,
             }
             raybench::util::Log::ClientConnect ();
 
-            raybench::util::WinAPI::HookCreateProcess ();
-            raybench::util::WinAPI::HookLoadLibrary ();
+            raybench::payload::HookCreateProcess ();
+            raybench::payload::HookLoadLibrary ();
 
-            RAYBENCH_LOG_INFO ("Hooked win32.dll API calls with hooks from ray-bench-winapi.dll");
+            RAYBENCH_LOG_DEBUG ("Ready to inject hooks from ray-bench-payload.dll");
         }
         case DLL_PROCESS_DETACH:
         case DLL_THREAD_DETACH:
