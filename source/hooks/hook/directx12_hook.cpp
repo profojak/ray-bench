@@ -7,6 +7,8 @@ module;
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
+#include <dxgi.h>
+#include <d3d12.h>
 
 #include "util/log.h"
 
@@ -22,24 +24,88 @@ using namespace std::literals;
 namespace raybench::hook
 {
 
+///< D3D12 dynamic-link library handle
+static HMODULE d3d12_module = nullptr;
 ///< DXGI dynamic-link library handle
 static HMODULE dxgi_module = nullptr;
 
 // ============================================================================
 
-HRESULT Hooked_CreateDXGIFactory (REFIID riid, void** ppFactory)
+HRESULT WINAPI Hooked_D3D12CreateDevice (IUnknown* pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel,
+                                         REFIID riid, void** ppDevice)
+{
+    return Original_D3D12CreateDevice (pAdapter, MinimumFeatureLevel, riid, ppDevice);
+}
+
+// ----------------------------------------------------------------------------
+
+HRESULT WINAPI Hooked_CreateDXGIFactory (REFIID riid, void** ppFactory)
 {
     return Original_CreateDXGIFactory (riid, ppFactory);
 }
 
-HRESULT Hooked_CreateDXGIFactory1 (REFIID riid, void** ppFactory)
+HRESULT WINAPI Hooked_CreateDXGIFactory1 (REFIID riid, void** ppFactory)
 {
     return Original_CreateDXGIFactory1 (riid, ppFactory);
 }
 
-HRESULT Hooked_CreateDXGIFactory2 (UINT Flags, REFIID riid, void** ppFactory)
+HRESULT WINAPI Hooked_CreateDXGIFactory2 (UINT Flags, REFIID riid, void** ppFactory)
 {
     return Original_CreateDXGIFactory2 (Flags, riid, ppFactory);
+}
+
+// ============================================================================
+
+/// @brief Hook `D3D12CreateDevice` API call
+/// 
+/// @return True if successful, false otherwise
+export bool HookD3D12CreateDevice ()
+{
+    bool result = true;
+
+    if (d3d12_module == nullptr)
+    {
+        d3d12_module = GetModuleHandleA ("d3d12.dll");
+        if (d3d12_module == nullptr)
+        {
+            RAYBENCH_LOG_CRITICAL ("Failed to get handle for 'd3d12.dll': {}!",
+                                   GetLastError ());
+            return false;
+        }
+    }
+
+    Original_D3D12CreateDevice = reinterpret_cast<pfn_D3D12CreateDevice> (
+        GetProcAddress (d3d12_module, "D3D12CreateDevice"));
+
+    if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_D3D12CreateDevice),
+                                      reinterpret_cast<PVOID>(Hooked_D3D12CreateDevice)))
+    {
+        RAYBENCH_LOG_CRITICAL ("Failed to hook 'D3D12CreateDevice'!");
+        result = false;
+    }
+    return result;
+}
+
+// ----------------------------------------------------------------------------
+
+/// @brief Unhook `D3D12CreateDevice` API call
+/// 
+/// @return True if successful, false otherwise
+export bool UnhookD3D12CreateDevice ()
+{
+    bool result = true;
+
+    if (!raybench::util::UnhookAPICall (reinterpret_cast<PVOID*>(&Original_D3D12CreateDevice),
+                                        reinterpret_cast<PVOID>(Hooked_D3D12CreateDevice)))
+    {
+        RAYBENCH_LOG_CRITICAL ("Failed to unhook 'D3D12CreateDevice'!");
+        result = false;
+    }
+
+    Original_D3D12CreateDevice = reinterpret_cast<pfn_D3D12CreateDevice> (
+        GetProcAddress (d3d12_module, "D3D12CreateDevice"));
+
+    return result;
 }
 
 // ============================================================================
@@ -102,7 +168,6 @@ export bool UnhookCreateDXGIFactory ()
             {
                 RAYBENCH_LOG_CRITICAL ("Failed to unhook '{}'", func_name);
                 result = false;
-                return;
             }
         };
 
