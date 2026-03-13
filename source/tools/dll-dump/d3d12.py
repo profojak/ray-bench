@@ -31,7 +31,9 @@ def extract_vtable_indices(header_path):
         methods = []
         
         for method_match in method_pattern.finditer(struct_body):
-            methods.append(method_match.group(1))
+            method_name = method_match.group(1)
+            if method_name not in methods:
+                methods.append(method_name)
             
         if methods:
             vtables[interface_name] = methods
