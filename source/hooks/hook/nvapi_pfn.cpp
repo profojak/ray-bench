@@ -7,6 +7,8 @@ module;
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
+#include <d3d12.h>
+#include <dxgi.h>
 #include <nvapi/nvapi.h>
 
 export module RayBench.Hook:NVAPI.Pfn;
@@ -15,6 +17,14 @@ namespace raybench::hook
 {
 
 // ============================================================================
+
+using pfn_NvAPI_DirectD3D12GraphicsCommandList_Create = NvAPI_Status (WINAPI*) (
+    ID3D12GraphicsCommandList*,
+    INvAPI_DirectD3D12GraphicsCommandList**);
+
+pfn_NvAPI_DirectD3D12GraphicsCommandList_Create Original_NvAPI_DirectD3D12GraphicsCommandList_Create = nullptr;
+
+// ----------------------------------------------------------------------------
 
 using pfn_NvAPI_Initialize = NvAPI_Status (WINAPI*)();
 
