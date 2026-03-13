@@ -33,6 +33,15 @@ static HMODULE nvapi_module = nullptr;
 
 // ============================================================================
 
+NvAPI_Status WINAPI Hooked_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx (
+    ID3D12GraphicsCommandList4* pCommandList,
+    const NVAPI_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_EX_PARAMS* pBuildParams)
+{
+    return Original_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx (pCommandList, pBuildParams);
+}
+
+// ----------------------------------------------------------------------------
+
 NvAPI_Status WINAPI Hooked_NvAPI_DirectD3D12GraphicsCommandList_Create (
     ID3D12GraphicsCommandList* pDXD3D12GraphicsCommandList,
     INvAPI_DirectD3D12GraphicsCommandList** ppReturnD3D12GraphicsCommandList)
@@ -75,9 +84,12 @@ export bool HookNvAPI ()
         Original_NvAPI_QueryInterface (static_cast<NvU32>(0x0150E828)));
     Original_NvAPI_DirectD3D12GraphicsCommandList_Create = reinterpret_cast<pfn_NvAPI_DirectD3D12GraphicsCommandList_Create> (
         Original_NvAPI_QueryInterface (static_cast<NvU32>(NvAPI_pfn_ID::NvAPI_DirectD3D12GraphicsCommandList_Create)));
+    Original_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx = reinterpret_cast<pfn_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx> (
+        Original_NvAPI_QueryInterface (static_cast<NvU32>(NvAPI_pfn_ID::NvAPI_D3D12_BuildRaytracingAccelerationStructureEx)));
 
     result &= HookWrap (Original_NvAPI_Initialize, Hooked_NvAPI_Initialize, "NvAPI_Initialize"sv);
     result &= HookWrap (Original_NvAPI_DirectD3D12GraphicsCommandList_Create, Hooked_NvAPI_DirectD3D12GraphicsCommandList_Create, "NvAPI_DirectD3D12GraphicsCommandList_Create"sv);
+    result &= HookWrap (Original_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx, Hooked_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx, "NvAPI_D3D12_BuildRaytracingAccelerationStructureEx"sv);
 
     return result;
 }
@@ -93,11 +105,14 @@ export bool UnhookNvAPI ()
 
     UnhookWrap (Original_NvAPI_Initialize, Hooked_NvAPI_Initialize, "NvAPI_Initialize"sv);
     UnhookWrap (Original_NvAPI_DirectD3D12GraphicsCommandList_Create, Hooked_NvAPI_DirectD3D12GraphicsCommandList_Create, "NvAPI_DirectD3D12GraphicsCommandList_Create"sv);
+    UnhookWrap (Original_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx, Hooked_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx, "NvAPI_D3D12_BuildRaytracingAccelerationStructureEx"sv);
 
     Original_NvAPI_Initialize = reinterpret_cast<pfn_NvAPI_Initialize> (
         Original_NvAPI_QueryInterface (static_cast<NvU32>(NvAPI_pfn_ID::NvAPI_Initialize)));
     Original_NvAPI_DirectD3D12GraphicsCommandList_Create = reinterpret_cast<pfn_NvAPI_DirectD3D12GraphicsCommandList_Create> (
         Original_NvAPI_QueryInterface (static_cast<NvU32>(NvAPI_pfn_ID::NvAPI_DirectD3D12GraphicsCommandList_Create)));
+    Original_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx = reinterpret_cast<pfn_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx> (
+        Original_NvAPI_QueryInterface (static_cast<NvU32>(NvAPI_pfn_ID::NvAPI_D3D12_BuildRaytracingAccelerationStructureEx)));
 
     return result;
 }

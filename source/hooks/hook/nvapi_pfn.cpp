@@ -18,6 +18,14 @@ namespace raybench::hook
 
 // ============================================================================
 
+using pfn_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx = NvAPI_Status (WINAPI*) (
+    ID3D12GraphicsCommandList4*,
+    const NVAPI_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_EX_PARAMS*);
+
+pfn_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx Original_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx = nullptr;
+
+// ----------------------------------------------------------------------------
+
 using pfn_NvAPI_DirectD3D12GraphicsCommandList_Create = NvAPI_Status (WINAPI*) (
     ID3D12GraphicsCommandList*,
     INvAPI_DirectD3D12GraphicsCommandList**);
