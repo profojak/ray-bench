@@ -18,6 +18,18 @@ namespace raybench::hook
 
 // ============================================================================
 
+struct Original_ID3D12Device
+{
+    using pfn_CreateCommandQueue = HRESULT (WINAPI*)(ID3D12Device*,
+                                                     const D3D12_COMMAND_QUEUE_DESC*,
+                                                     REFIID,
+                                                     void**);
+
+    inline static pfn_CreateCommandQueue CreateCommandQueue = nullptr;
+};
+
+// ----------------------------------------------------------------------------
+
 using pfn_D3D12GetInterface = HRESULT (WINAPI*)(REFCLSID, REFIID, void**);
 
 pfn_D3D12GetInterface Original_D3D12GetInterface = nullptr;

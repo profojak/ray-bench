@@ -31,6 +31,23 @@ static HMODULE dxgi_module = nullptr;
 
 // ============================================================================
 
+struct Hooked_ID3D12Device
+{
+    inline static HRESULT WINAPI CreateCommandQueue (ID3D12Device* This,
+                                                     const D3D12_COMMAND_QUEUE_DESC* pDesc,
+                                                     REFIID riid,
+                                                     void** ppCommandQueue)
+    {
+        return Original_ID3D12Device::CreateCommandQueue (This, pDesc, riid, ppCommandQueue);
+    }
+
+    // ------------------------------------------------------------------------
+
+    static void Hook ();
+};
+
+// ----------------------------------------------------------------------------
+
 HRESULT WINAPI Hooked_D3D12GetInterface (REFCLSID rclsid, REFIID riid, void** ppvDebug)
 {
     return Original_D3D12GetInterface (rclsid, riid, ppvDebug);
@@ -59,6 +76,38 @@ HRESULT WINAPI Hooked_CreateDXGIFactory1 (REFIID riid, void** ppFactory)
 HRESULT WINAPI Hooked_CreateDXGIFactory2 (UINT Flags, REFIID riid, void** ppFactory)
 {
     return Original_CreateDXGIFactory2 (Flags, riid, ppFactory);
+}
+
+// ============================================================================
+
+void Hooked_ID3D12Device::Hook ()
+{
+    auto hook_once = [] ()
+        {
+            ID3D12Device* device = nullptr;
+            HRESULT hr = Original_D3D12CreateDevice (nullptr, D3D_FEATURE_LEVEL_12_0,
+                                                     IID_PPV_ARGS (&device));
+            if (FAILED (hr))
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to create D3D12 device: {}!", hr);
+                return;
+            }
+
+            void** vtable = *reinterpret_cast<void***> (device);
+            Original_ID3D12Device::CreateCommandQueue = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandQueue> (
+                vtable[8]);
+
+            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_ID3D12Device::CreateCommandQueue),
+                                              reinterpret_cast<PVOID>(Hooked_ID3D12Device::CreateCommandQueue)))
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to hook 'ID3D12Device::CreateCommandQueue'!");
+            }
+
+            device->Release ();
+        };
+
+    static std::once_flag init_flag;
+    std::call_once (init_flag, hook_once);
 }
 
 // ============================================================================
@@ -98,6 +147,9 @@ export bool HookD3D12 ()
 
     Hook (Original_D3D12CreateDevice, Hooked_D3D12CreateDevice, "D3D12CreateDevice"sv);
     Hook (Original_D3D12GetInterface, Hooked_D3D12GetInterface, "D3D12GetInterface"sv);
+
+    // Hook API calls using virtual function tables of dummy objects
+    Hooked_ID3D12Device::Hook ();
 
     return result;
 }
