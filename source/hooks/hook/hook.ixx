@@ -4,8 +4,10 @@
 
 export module RayBench.Hook;
 
-export import :DirectX12.Hook;
-export import :DirectX12.Pfn;
+export import :D3D12.Hook;
+export import :D3D12.Pfn;
+export import :DXGI.Hook;
+export import :DXGI.Pfn;
 export import :NVAPI.Hook;
 export import :NVAPI.Pfn;
 

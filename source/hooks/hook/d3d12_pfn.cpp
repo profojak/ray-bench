@@ -1,6 +1,6 @@
 // ============================================================================
 
-/// @brief DirectX 12 function pointers
+/// @brief D3D12 function pointers
 
 module;
 
@@ -8,9 +8,8 @@ module;
 #define NOMINMAX
 #include <Windows.h>
 #include <d3d12.h>
-#include <dxgi.h>
 
-export module RayBench.Hook:DirectX12.Pfn;
+export module RayBench.Hook:D3D12.Pfn;
 
 namespace raybench::hook
 {
@@ -53,21 +52,9 @@ using pfn_D3D12GetInterface = HRESULT (WINAPI*)(REFCLSID, REFIID, void**);
 
 pfn_D3D12GetInterface Original_D3D12GetInterface = nullptr;
 
-// ----------------------------------------------------------------------------
-
 using pfn_D3D12CreateDevice = HRESULT (WINAPI*)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void**);
 
 pfn_D3D12CreateDevice Original_D3D12CreateDevice = nullptr;
-
-// ----------------------------------------------------------------------------
-
-using pfn_CreateDXGIFactory = HRESULT (WINAPI*) (REFIID, void**);
-using pfn_CreateDXGIFactory1 = HRESULT (WINAPI*) (REFIID, void**);
-using pfn_CreateDXGIFactory2 = HRESULT (WINAPI*) (UINT, REFIID, void**);
-
-pfn_CreateDXGIFactory Original_CreateDXGIFactory = nullptr;
-pfn_CreateDXGIFactory1 Original_CreateDXGIFactory1 = nullptr;
-pfn_CreateDXGIFactory2 Original_CreateDXGIFactory2 = nullptr;
 
 }
 

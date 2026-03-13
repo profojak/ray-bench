@@ -15,19 +15,25 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="directx12_hook.cpp">
+    <ClCompile Include="d3d12_hook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="hook.ixx">
       <Filter>Header Files</Filter>
     </ClCompile>
-    <ClCompile Include="directx12_pfn.cpp">
+    <ClCompile Include="d3d12_pfn.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="nvapi_pfn.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="nvapi_hook.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dxgi_hook.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dxgi_pfn.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
