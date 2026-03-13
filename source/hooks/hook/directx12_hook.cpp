@@ -10,6 +10,7 @@ module;
 #include <dxgi.h>
 #include <d3d12.h>
 
+#include "d3d12_vtables.h"
 #include "util/log.h"
 
 export module RayBench.Hook:DirectX12.Hook;
@@ -124,9 +125,9 @@ void Hooked_ID3D12Device::Hook ()
 
             void** vtable = *reinterpret_cast<void***> (device);
             Original_ID3D12Device::CreateCommandQueue = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandQueue> (
-                vtable[8]);
+                vtable[static_cast<int>(ID3D12Device_VTable_ID::CreateCommandQueue)]);
             Original_ID3D12Device::CreateCommandList = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList> (
-                vtable[12]);
+                vtable[static_cast<int>(ID3D12Device_VTable_ID::CreateCommandList)]);
 
             HookWrap(Original_ID3D12Device::CreateCommandQueue, Hooked_ID3D12Device::CreateCommandQueue, "ID3D12Device::CreateCommandQueue"sv);
             HookWrap (Original_ID3D12Device::CreateCommandList, Hooked_ID3D12Device::CreateCommandList, "ID3D12Device::CreateCommandList"sv);
@@ -142,7 +143,7 @@ void Hooked_ID3D12Device::Hook ()
 
             vtable = *reinterpret_cast<void***> (device4);
             Original_ID3D12Device::CreateCommandList1 = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList1> (
-                vtable[51]);
+                vtable[static_cast<int>(ID3D12Device4_VTable_ID::CreateCommandList1)]);
 
             HookWrap (Original_ID3D12Device::CreateCommandList1, Hooked_ID3D12Device::CreateCommandList1, "ID3D12Device4::CreateCommandList1"sv);
 

@@ -33,7 +33,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="nvapi_ids.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="d3d12_vtables.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
