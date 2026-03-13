@@ -24,5 +24,16 @@
     <ClCompile Include="directx12_pfn.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="nvapi_pfn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="nvapi_hook.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="nvapi_ids.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

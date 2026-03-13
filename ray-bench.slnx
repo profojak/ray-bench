@@ -1,5 +1,6 @@
 <Solution>
   <Configurations>
+    <Platform Name="Any CPU" />
     <Platform Name="x64" />
   </Configurations>
   <Folder Name="/Core/">
@@ -10,6 +11,10 @@
     <Project Path="source/hooks/payload/payload.vcxproj" Id="f9f5cdb0-1c9a-4854-881e-a01acc4f5738" />
   </Folder>
   <Folder Name="/Tools/">
+    <Project Path="source/tools/dll-dump/dll-dump.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="d2927a8c-f0a1-4da4-9bb3-ab80477526fa">
+      <Platform Project="AnyCPU" />
+      <Build Project="false" />
+    </Project>
     <Project Path="source/tools/inject/inject.vcxproj" Id="e26800c4-049f-4d72-80dc-bae445cc966b" />
   </Folder>
 </Solution>

@@ -7,8 +7,9 @@ module;
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
-#include <dxgi.h>
+
 #include <d3d12.h>
+#include <dxgi.h>
 
 export module RayBench.Hook:DirectX12.Pfn;
 

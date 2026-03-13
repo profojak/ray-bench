@@ -141,7 +141,7 @@ static bool IsBlacklisted (std::basic_string_view<CharT> path)
 /// 
 /// @param system_lib System library to check if already loaded
 /// @return Handle to hooked library if successful, `nullptr` otherwise
-HMODULE HookLibrary (std::string_view system_lib)
+static HMODULE HookLibrary (std::string_view system_lib)
 {
     HMODULE system_module = GetModuleHandleA (system_lib.data ());
     if (system_module == nullptr)
@@ -160,8 +160,7 @@ HMODULE HookLibrary (std::string_view system_lib)
     }
     else if (system_lib == "nvapi64.dll"sv)
     {
-        // TODO: Hook something!
-        return system_module;
+        hook_func = raybench::hook::HookNvAPI;
     }
     else
     {
