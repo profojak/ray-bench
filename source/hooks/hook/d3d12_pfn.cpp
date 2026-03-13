@@ -16,6 +16,19 @@ namespace raybench::hook
 
 // ============================================================================
 
+namespace Original_ID3D12GraphicsCommandList
+{
+using pfn_BuildRaytracingAccelerationStructure = void (WINAPI*) (
+    ID3D12GraphicsCommandList4*,
+    const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC*,
+    UINT,
+    const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC*);
+
+pfn_BuildRaytracingAccelerationStructure BuildRaytracingAccelerationStructure = nullptr;
+};
+
+// ============================================================================
+
 namespace Original_ID3D12Device
 {
 using pfn_CreateCommandQueue = HRESULT (WINAPI*)(ID3D12Device*,
@@ -46,7 +59,7 @@ pfn_CreateCommandList CreateCommandList = nullptr;
 pfn_CreateCommandList1 CreateCommandList1 = nullptr;
 };
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 using pfn_D3D12GetInterface = HRESULT (WINAPI*)(REFCLSID, REFIID, void**);
 

@@ -31,6 +31,26 @@ static HMODULE d3d12_module = nullptr;
 
 // ============================================================================
 
+namespace Hooked_ID3D12GraphicsCommandList
+{
+static bool is_hooked = false;
+
+void WINAPI BuildRaytracingAccelerationStructure (
+    ID3D12GraphicsCommandList4* This,
+    const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC* pDesc,
+    UINT NumPostbuildInfoDescs,
+    const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC* pPostbuildInfoDescs)
+{
+    Original_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure (This, pDesc, NumPostbuildInfoDescs,
+                                                                              pPostbuildInfoDescs);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure'");
+}
+
+};
+
+// ============================================================================
+
 namespace Hooked_ID3D12Device
 {
 static bool is_hooked = false;
@@ -62,8 +82,33 @@ HRESULT WINAPI CreateCommandList (ID3D12Device* This,
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandList'");
 
+    if (Hooked_ID3D12GraphicsCommandList::is_hooked == false && SUCCEEDED (hr) && ppCommandList != nullptr &&
+        *ppCommandList != nullptr)
+    {
+        if (Original_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure == nullptr)
+        {
+            ID3D12GraphicsCommandList4* command_list4 = nullptr;
+            if (FAILED (reinterpret_cast<ID3D12GraphicsCommandList*>(*ppCommandList)->QueryInterface (IID_PPV_ARGS (&command_list4))))
+            {
+                return hr;
+            }
+            void** vtable = *reinterpret_cast<void***> (command_list4);
+            Original_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure =
+                reinterpret_cast<Original_ID3D12GraphicsCommandList::pfn_BuildRaytracingAccelerationStructure> (
+                    vtable[static_cast<int>(ID3D12GraphicsCommandList4_VTable_ID::BuildRaytracingAccelerationStructure)]);
+
+            HookWrap (Original_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure,
+                      Hooked_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure,
+                      "ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure"sv);
+        }
+
+        Hooked_ID3D12GraphicsCommandList::is_hooked = true;
+    }
+
     return hr;
 }
+
+// ----------------------------------------------------------------------------
 
 HRESULT WINAPI CreateCommandList1 (ID3D12Device4* This,
                                    UINT nodeMask,
@@ -82,7 +127,7 @@ HRESULT WINAPI CreateCommandList1 (ID3D12Device4* This,
 }
 };
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 HRESULT WINAPI Hooked_D3D12GetInterface (REFCLSID rclsid, REFIID riid, void** ppvDebug)
 {
@@ -93,6 +138,8 @@ HRESULT WINAPI Hooked_D3D12GetInterface (REFCLSID rclsid, REFIID riid, void** pp
     return hr;
 }
 
+// ----------------------------------------------------------------------------
+
 HRESULT WINAPI Hooked_D3D12CreateDevice (IUnknown* pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel,
                                          REFIID riid, void** ppDevice)
 {
@@ -102,27 +149,33 @@ HRESULT WINAPI Hooked_D3D12CreateDevice (IUnknown* pAdapter, D3D_FEATURE_LEVEL M
 
     if (Hooked_ID3D12Device::is_hooked == false && SUCCEEDED (hr) && ppDevice != nullptr && *ppDevice != nullptr)
     {
-        ID3D12Device* device = reinterpret_cast<ID3D12Device*>(*ppDevice);
-        void** vtable = *reinterpret_cast<void***> (device);
-
-        Original_ID3D12Device::CreateCommandList = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList> (
-            vtable[static_cast<int>(ID3D12Device_VTable_ID::CreateCommandList)]);
-
-        HookWrap (Original_ID3D12Device::CreateCommandList, Hooked_ID3D12Device::CreateCommandList,
-                  "ID3D12Device::CreateCommandList"sv);
-
-        ID3D12Device4* device4 = nullptr;
-        if (FAILED (reinterpret_cast<ID3D12Device*>(*ppDevice)->QueryInterface (IID_PPV_ARGS (&device4))))
+        if (Original_ID3D12Device::CreateCommandList == nullptr)
         {
-            RAYBENCH_LOG_ERROR ("Failed to query 'ID3D12Device4' interface!");
-            return hr;
+            ID3D12Device* device = reinterpret_cast<ID3D12Device*>(*ppDevice);
+            void** vtable = *reinterpret_cast<void***> (device);
+
+            Original_ID3D12Device::CreateCommandList = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList> (
+                vtable[static_cast<int>(ID3D12Device_VTable_ID::CreateCommandList)]);
+
+            HookWrap (Original_ID3D12Device::CreateCommandList, Hooked_ID3D12Device::CreateCommandList,
+                      "ID3D12Device::CreateCommandList"sv);
         }
 
-        Original_ID3D12Device::CreateCommandList1 = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList1> (
-            vtable[static_cast<int>(ID3D12Device4_VTable_ID::CreateCommandList1)]);
+        if (Original_ID3D12Device::CreateCommandList1 == nullptr)
+        {
+            ID3D12Device4* device4 = nullptr;
+            if (FAILED (reinterpret_cast<ID3D12Device*>(*ppDevice)->QueryInterface (IID_PPV_ARGS (&device4))))
+            {
+                return hr;
+            }
+            void** vtable = *reinterpret_cast<void***> (device4);
 
-        HookWrap (Original_ID3D12Device::CreateCommandList1, Hooked_ID3D12Device::CreateCommandList1,
-                  "ID3D12Device4::CreateCommandList1"sv);
+            Original_ID3D12Device::CreateCommandList1 = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList1> (
+                vtable[static_cast<int>(ID3D12Device4_VTable_ID::CreateCommandList1)]);
+
+            HookWrap (Original_ID3D12Device::CreateCommandList1, Hooked_ID3D12Device::CreateCommandList1,
+                      "ID3D12Device4::CreateCommandList1"sv);
+        }
 
         Hooked_ID3D12Device::is_hooked = true;
     }
