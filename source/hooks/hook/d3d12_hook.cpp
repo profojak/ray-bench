@@ -31,53 +31,55 @@ static HMODULE d3d12_module = nullptr;
 
 // ============================================================================
 
-struct Hooked_ID3D12Device
+namespace Hooked_ID3D12Device
 {
-    inline static HRESULT WINAPI CreateCommandQueue (ID3D12Device* This,
-                                                     const D3D12_COMMAND_QUEUE_DESC* pDesc,
-                                                     REFIID riid,
-                                                     void** ppCommandQueue)
-    {
-        HRESULT hr = Original_ID3D12Device::CreateCommandQueue (This, pDesc, riid, ppCommandQueue);
+static bool is_hooked = false;
 
-        RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandQueue'");
+HRESULT WINAPI CreateCommandQueue (ID3D12Device* This,
+                                                 const D3D12_COMMAND_QUEUE_DESC* pDesc,
+                                                 REFIID riid,
+                                                 void** ppCommandQueue)
+{
+    HRESULT hr = Original_ID3D12Device::CreateCommandQueue (This, pDesc, riid, ppCommandQueue);
 
-        return hr;
-    }
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandQueue'");
 
-    // ------------------------------------------------------------------------
+    return hr;
+}
 
-    inline static HRESULT WINAPI CreateCommandList (ID3D12Device* This,
-                                                    UINT nodeMask,
-                                                    D3D12_COMMAND_LIST_TYPE type,
-                                                    ID3D12CommandAllocator* pCommandAllocator,
-                                                    ID3D12PipelineState* pInitialState,
-                                                    REFIID riid,
-                                                    void** ppCommandList)
-    {
-        HRESULT hr = Original_ID3D12Device::CreateCommandList (This, nodeMask, type, pCommandAllocator,
-                                                               pInitialState, riid, ppCommandList);
+// ----------------------------------------------------------------------------
 
-        RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandList'");
+HRESULT WINAPI CreateCommandList (ID3D12Device* This,
+                                                UINT nodeMask,
+                                                D3D12_COMMAND_LIST_TYPE type,
+                                                ID3D12CommandAllocator* pCommandAllocator,
+                                                ID3D12PipelineState* pInitialState,
+                                                REFIID riid,
+                                                void** ppCommandList)
+{
+    HRESULT hr = Original_ID3D12Device::CreateCommandList (This, nodeMask, type, pCommandAllocator,
+                                                           pInitialState, riid, ppCommandList);
 
-        return hr;
-    }
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandList'");
 
-    inline static HRESULT WINAPI CreateCommandList1 (ID3D12Device4* This,
-                                                     UINT nodeMask,
-                                                     D3D12_COMMAND_LIST_TYPE type,
-                                                     ID3D12CommandAllocator* pCommandAllocator,
-                                                     ID3D12PipelineState* pInitialState,
-                                                     REFIID riid,
-                                                     void** ppCommandList)
-    {
-        HRESULT hr = Original_ID3D12Device::CreateCommandList1 (This, nodeMask, type, pCommandAllocator,
-                                                                pInitialState, riid, ppCommandList);
+    return hr;
+}
 
-        RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandList1'");
+HRESULT WINAPI CreateCommandList1 (ID3D12Device4* This,
+                                                 UINT nodeMask,
+                                                 D3D12_COMMAND_LIST_TYPE type,
+                                                 ID3D12CommandAllocator* pCommandAllocator,
+                                                 ID3D12PipelineState* pInitialState,
+                                                 REFIID riid,
+                                                 void** ppCommandList)
+{
+    HRESULT hr = Original_ID3D12Device::CreateCommandList1 (This, nodeMask, type, pCommandAllocator,
+                                                            pInitialState, riid, ppCommandList);
 
-        return hr;
-    }
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandList1'");
+
+    return hr;
+}
 };
 
 // ----------------------------------------------------------------------------

@@ -16,34 +16,34 @@ namespace raybench::hook
 
 // ============================================================================
 
-struct Original_ID3D12Device
+namespace Original_ID3D12Device
 {
-    using pfn_CreateCommandQueue = HRESULT (WINAPI*)(ID3D12Device*,
-                                                     const D3D12_COMMAND_QUEUE_DESC*,
-                                                     REFIID,
-                                                     void**);
+using pfn_CreateCommandQueue = HRESULT (WINAPI*)(ID3D12Device*,
+                                                 const D3D12_COMMAND_QUEUE_DESC*,
+                                                 REFIID,
+                                                 void**);
 
-    inline static pfn_CreateCommandQueue CreateCommandQueue = nullptr;
+pfn_CreateCommandQueue CreateCommandQueue = nullptr;
 
-    // ------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
-    using pfn_CreateCommandList = HRESULT (WINAPI*)(ID3D12Device*,
-                                                    UINT,
-                                                    D3D12_COMMAND_LIST_TYPE,
-                                                    ID3D12CommandAllocator*,
-                                                    ID3D12PipelineState*,
-                                                    REFIID,
-                                                    void**);
-    using pfn_CreateCommandList1 = HRESULT (WINAPI*)(ID3D12Device4*,
-                                                     UINT,
-                                                     D3D12_COMMAND_LIST_TYPE,
-                                                     ID3D12CommandAllocator*,
-                                                     ID3D12PipelineState*,
-                                                     REFIID,
-                                                     void**);
+using pfn_CreateCommandList = HRESULT (WINAPI*)(ID3D12Device*,
+                                                UINT,
+                                                D3D12_COMMAND_LIST_TYPE,
+                                                ID3D12CommandAllocator*,
+                                                ID3D12PipelineState*,
+                                                REFIID,
+                                                void**);
+using pfn_CreateCommandList1 = HRESULT (WINAPI*)(ID3D12Device4*,
+                                                 UINT,
+                                                 D3D12_COMMAND_LIST_TYPE,
+                                                 ID3D12CommandAllocator*,
+                                                 ID3D12PipelineState*,
+                                                 REFIID,
+                                                 void**);
 
-    inline static pfn_CreateCommandList CreateCommandList = nullptr;
-    inline static pfn_CreateCommandList1 CreateCommandList1 = nullptr;
+pfn_CreateCommandList CreateCommandList = nullptr;
+pfn_CreateCommandList1 CreateCommandList1 = nullptr;
 };
 
 // ----------------------------------------------------------------------------
