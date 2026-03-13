@@ -123,7 +123,7 @@ void Hooked_ID3D12Device::Hook ()
             Original_ID3D12Device::CreateCommandQueue = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandQueue> (
                 vtable[8]);
             Original_ID3D12Device::CreateCommandList = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList> (
-                vtable[9]);
+                vtable[12]);
 
             if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_ID3D12Device::CreateCommandQueue),
                                               reinterpret_cast<PVOID>(Hooked_ID3D12Device::CreateCommandQueue)))
@@ -148,7 +148,7 @@ void Hooked_ID3D12Device::Hook ()
 
             vtable = *reinterpret_cast<void***> (device4);
             Original_ID3D12Device::CreateCommandList1 = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList1> (
-                vtable[44]);
+                vtable[51]);
 
             if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_ID3D12Device::CreateCommandList1),
                                               reinterpret_cast<PVOID>(Hooked_ID3D12Device::CreateCommandList1)))
