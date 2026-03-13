@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 NVAPI_LIB_PATH = "../../../external/nvapi/amd64/nvapi64.lib"
-HEADER_OUTPUT_PATH = "../../../source/hooks/hook/nvapi_ids.h"
+HEADER_OUTPUT_PATH = "../../../source/hooks/hook/nvapi_ids.hpp"
 
 def extract_nvapi_magic_ids(lib_path: str | Path, output_file: str | Path = "nvapi.txt"):
     """

@@ -116,8 +116,8 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="d3d12_vtables.h" />
-    <ClInclude Include="nvapi_ids.h" />
+    <ClInclude Include="d3d12_vtables.hpp" />
+    <ClInclude Include="nvapi_ids.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

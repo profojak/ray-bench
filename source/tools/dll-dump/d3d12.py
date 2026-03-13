@@ -5,7 +5,7 @@ Extracts VTable IDs of DirectX 12 interfaces by parsing C-style dxgi.h.
 import re
 
 D3D12_HEADER_PATH = "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um/d3d12.h"
-HEADER_OUTPUT_PATH = "../../../source/hooks/hook/d3d12_vtables.h"
+HEADER_OUTPUT_PATH = "../../../source/hooks/hook/d3d12_vtables.hpp"
 
 def extract_vtable_indices(header_path):
     """
