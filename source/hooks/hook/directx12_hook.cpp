@@ -43,6 +43,32 @@ struct Hooked_ID3D12Device
 
     // ------------------------------------------------------------------------
 
+    inline static HRESULT WINAPI CreateCommandList (ID3D12Device* This,
+                                                    UINT nodeMask,
+                                                    D3D12_COMMAND_LIST_TYPE type,
+                                                    ID3D12CommandAllocator* pCommandAllocator,
+                                                    ID3D12PipelineState* pInitialState,
+                                                    REFIID riid,
+                                                    void** ppCommandList)
+    {
+        return Original_ID3D12Device::CreateCommandList (This, nodeMask, type, pCommandAllocator,
+                                                         pInitialState, riid, ppCommandList);
+    }
+
+    inline static HRESULT WINAPI CreateCommandList1 (ID3D12Device4* This,
+                                                     UINT nodeMask,
+                                                     D3D12_COMMAND_LIST_TYPE type,
+                                                     ID3D12CommandAllocator* pCommandAllocator,
+                                                     ID3D12PipelineState* pInitialState,
+                                                     REFIID riid,
+                                                     void** ppCommandList)
+    {
+        return Original_ID3D12Device::CreateCommandList1 (This, nodeMask, type, pCommandAllocator,
+                                                          pInitialState, riid, ppCommandList);
+    }
+
+    // ------------------------------------------------------------------------
+
     static void Hook ();
 };
 
@@ -96,6 +122,8 @@ void Hooked_ID3D12Device::Hook ()
             void** vtable = *reinterpret_cast<void***> (device);
             Original_ID3D12Device::CreateCommandQueue = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandQueue> (
                 vtable[8]);
+            Original_ID3D12Device::CreateCommandList = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList> (
+                vtable[9]);
 
             if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_ID3D12Device::CreateCommandQueue),
                                               reinterpret_cast<PVOID>(Hooked_ID3D12Device::CreateCommandQueue)))
@@ -103,6 +131,32 @@ void Hooked_ID3D12Device::Hook ()
                 RAYBENCH_LOG_CRITICAL ("Failed to hook 'ID3D12Device::CreateCommandQueue'!");
             }
 
+            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_ID3D12Device::CreateCommandList),
+                                              reinterpret_cast<PVOID>(Hooked_ID3D12Device::CreateCommandList)))
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to hook 'ID3D12Device::CreateCommandList'!");
+            }
+
+            ID3D12Device4* device4 = nullptr;
+            hr = device->QueryInterface (IID_PPV_ARGS (&device4));
+            if (FAILED (hr))
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to query 'ID3D12Device4' interface: {}!", hr);
+                device->Release ();
+                return;
+            }
+
+            vtable = *reinterpret_cast<void***> (device4);
+            Original_ID3D12Device::CreateCommandList1 = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList1> (
+                vtable[44]);
+
+            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_ID3D12Device::CreateCommandList1),
+                                              reinterpret_cast<PVOID>(Hooked_ID3D12Device::CreateCommandList1)))
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to hook 'ID3D12Device4::CreateCommandList1'!");
+            }
+
+            device4->Release ();
             device->Release ();
         };
 
