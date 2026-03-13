@@ -36,9 +36,9 @@ namespace Hooked_ID3D12Device
 static bool is_hooked = false;
 
 HRESULT WINAPI CreateCommandQueue (ID3D12Device* This,
-                                                 const D3D12_COMMAND_QUEUE_DESC* pDesc,
-                                                 REFIID riid,
-                                                 void** ppCommandQueue)
+                                   const D3D12_COMMAND_QUEUE_DESC* pDesc,
+                                   REFIID riid,
+                                   void** ppCommandQueue)
 {
     HRESULT hr = Original_ID3D12Device::CreateCommandQueue (This, pDesc, riid, ppCommandQueue);
 
@@ -50,12 +50,12 @@ HRESULT WINAPI CreateCommandQueue (ID3D12Device* This,
 // ----------------------------------------------------------------------------
 
 HRESULT WINAPI CreateCommandList (ID3D12Device* This,
-                                                UINT nodeMask,
-                                                D3D12_COMMAND_LIST_TYPE type,
-                                                ID3D12CommandAllocator* pCommandAllocator,
-                                                ID3D12PipelineState* pInitialState,
-                                                REFIID riid,
-                                                void** ppCommandList)
+                                  UINT nodeMask,
+                                  D3D12_COMMAND_LIST_TYPE type,
+                                  ID3D12CommandAllocator* pCommandAllocator,
+                                  ID3D12PipelineState* pInitialState,
+                                  REFIID riid,
+                                  void** ppCommandList)
 {
     HRESULT hr = Original_ID3D12Device::CreateCommandList (This, nodeMask, type, pCommandAllocator,
                                                            pInitialState, riid, ppCommandList);
@@ -66,12 +66,12 @@ HRESULT WINAPI CreateCommandList (ID3D12Device* This,
 }
 
 HRESULT WINAPI CreateCommandList1 (ID3D12Device4* This,
-                                                 UINT nodeMask,
-                                                 D3D12_COMMAND_LIST_TYPE type,
-                                                 ID3D12CommandAllocator* pCommandAllocator,
-                                                 ID3D12PipelineState* pInitialState,
-                                                 REFIID riid,
-                                                 void** ppCommandList)
+                                   UINT nodeMask,
+                                   D3D12_COMMAND_LIST_TYPE type,
+                                   ID3D12CommandAllocator* pCommandAllocator,
+                                   ID3D12PipelineState* pInitialState,
+                                   REFIID riid,
+                                   void** ppCommandList)
 {
     HRESULT hr = Original_ID3D12Device::CreateCommandList1 (This, nodeMask, type, pCommandAllocator,
                                                             pInitialState, riid, ppCommandList);
@@ -99,6 +99,33 @@ HRESULT WINAPI Hooked_D3D12CreateDevice (IUnknown* pAdapter, D3D_FEATURE_LEVEL M
     HRESULT hr = Original_D3D12CreateDevice (pAdapter, MinimumFeatureLevel, riid, ppDevice);
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'D3D12CreateDevice'");
+
+    if (Hooked_ID3D12Device::is_hooked == false && SUCCEEDED (hr) && ppDevice != nullptr && *ppDevice != nullptr)
+    {
+        ID3D12Device* device = reinterpret_cast<ID3D12Device*>(*ppDevice);
+        void** vtable = *reinterpret_cast<void***> (device);
+
+        Original_ID3D12Device::CreateCommandList = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList> (
+            vtable[static_cast<int>(ID3D12Device_VTable_ID::CreateCommandList)]);
+
+        HookWrap (Original_ID3D12Device::CreateCommandList, Hooked_ID3D12Device::CreateCommandList,
+                  "ID3D12Device::CreateCommandList"sv);
+
+        ID3D12Device4* device4 = nullptr;
+        if (FAILED (reinterpret_cast<ID3D12Device*>(*ppDevice)->QueryInterface (IID_PPV_ARGS (&device4))))
+        {
+            RAYBENCH_LOG_ERROR ("Failed to query 'ID3D12Device4' interface!");
+            return hr;
+        }
+
+        Original_ID3D12Device::CreateCommandList1 = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList1> (
+            vtable[static_cast<int>(ID3D12Device4_VTable_ID::CreateCommandList1)]);
+
+        HookWrap (Original_ID3D12Device::CreateCommandList1, Hooked_ID3D12Device::CreateCommandList1,
+                  "ID3D12Device4::CreateCommandList1"sv);
+
+        Hooked_ID3D12Device::is_hooked = true;
+    }
 
     return hr;
 }
