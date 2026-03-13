@@ -37,7 +37,11 @@ NvAPI_Status WINAPI Hooked_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx (
     ID3D12GraphicsCommandList4* pCommandList,
     const NVAPI_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_EX_PARAMS* pBuildParams)
 {
-    return Original_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx (pCommandList, pBuildParams);
+    NvAPI_Status status = Original_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx (pCommandList, pBuildParams);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'NvAPI_D3D12_BuildRaytracingAccelerationStructureEx'");
+
+    return status;
 }
 
 // ----------------------------------------------------------------------------
@@ -46,15 +50,23 @@ NvAPI_Status WINAPI Hooked_NvAPI_DirectD3D12GraphicsCommandList_Create (
     ID3D12GraphicsCommandList* pDXD3D12GraphicsCommandList,
     INvAPI_DirectD3D12GraphicsCommandList** ppReturnD3D12GraphicsCommandList)
 {
-    return Original_NvAPI_DirectD3D12GraphicsCommandList_Create (pDXD3D12GraphicsCommandList,
-                                                                 ppReturnD3D12GraphicsCommandList);
+    NvAPI_Status status = Original_NvAPI_DirectD3D12GraphicsCommandList_Create (pDXD3D12GraphicsCommandList,
+                                                                                ppReturnD3D12GraphicsCommandList);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'NvAPI_DirectD3D12GraphicsCommandList_Create'");
+
+    return status;
 }
 
 // ----------------------------------------------------------------------------
 
 NvAPI_Status WINAPI Hooked_NvAPI_Initialize ()
 {
-    return Original_NvAPI_Initialize ();
+    NvAPI_Status status = Original_NvAPI_Initialize ();
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'NvAPI_Initialize'");
+
+    return status;
 }
 
 // ============================================================================

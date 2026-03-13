@@ -38,7 +38,11 @@ struct Hooked_ID3D12Device
                                                      REFIID riid,
                                                      void** ppCommandQueue)
     {
-        return Original_ID3D12Device::CreateCommandQueue (This, pDesc, riid, ppCommandQueue);
+        HRESULT hr = Original_ID3D12Device::CreateCommandQueue (This, pDesc, riid, ppCommandQueue);
+
+        RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandQueue'");
+
+        return hr;
     }
 
     // ------------------------------------------------------------------------
@@ -51,8 +55,12 @@ struct Hooked_ID3D12Device
                                                     REFIID riid,
                                                     void** ppCommandList)
     {
-        return Original_ID3D12Device::CreateCommandList (This, nodeMask, type, pCommandAllocator,
-                                                         pInitialState, riid, ppCommandList);
+        HRESULT hr = Original_ID3D12Device::CreateCommandList (This, nodeMask, type, pCommandAllocator,
+                                                               pInitialState, riid, ppCommandList);
+
+        RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandList'");
+
+        return hr;
     }
 
     inline static HRESULT WINAPI CreateCommandList1 (ID3D12Device4* This,
@@ -63,8 +71,12 @@ struct Hooked_ID3D12Device
                                                      REFIID riid,
                                                      void** ppCommandList)
     {
-        return Original_ID3D12Device::CreateCommandList1 (This, nodeMask, type, pCommandAllocator,
-                                                          pInitialState, riid, ppCommandList);
+        HRESULT hr = Original_ID3D12Device::CreateCommandList1 (This, nodeMask, type, pCommandAllocator,
+                                                                pInitialState, riid, ppCommandList);
+
+        RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandList1'");
+
+        return hr;
     }
 };
 
@@ -72,13 +84,21 @@ struct Hooked_ID3D12Device
 
 HRESULT WINAPI Hooked_D3D12GetInterface (REFCLSID rclsid, REFIID riid, void** ppvDebug)
 {
-    return Original_D3D12GetInterface (rclsid, riid, ppvDebug);
+    HRESULT hr = Original_D3D12GetInterface (rclsid, riid, ppvDebug);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'D3D12GetInterface'");
+
+    return hr;
 }
 
 HRESULT WINAPI Hooked_D3D12CreateDevice (IUnknown* pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel,
                                          REFIID riid, void** ppDevice)
 {
-    return Original_D3D12CreateDevice (pAdapter, MinimumFeatureLevel, riid, ppDevice);
+    HRESULT hr = Original_D3D12CreateDevice (pAdapter, MinimumFeatureLevel, riid, ppDevice);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'D3D12CreateDevice'");
+
+    return hr;
 }
 
 // ============================================================================

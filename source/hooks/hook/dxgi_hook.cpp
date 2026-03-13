@@ -32,17 +32,29 @@ static HMODULE dxgi_module = nullptr;
 
 HRESULT WINAPI Hooked_CreateDXGIFactory (REFIID riid, void** ppFactory)
 {
-    return Original_CreateDXGIFactory (riid, ppFactory);
+    HRESULT hr = Original_CreateDXGIFactory (riid, ppFactory);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'CreateDXGIFactory'");
+
+    return hr;
 }
 
 HRESULT WINAPI Hooked_CreateDXGIFactory1 (REFIID riid, void** ppFactory)
 {
-    return Original_CreateDXGIFactory1 (riid, ppFactory);
+    HRESULT hr = Original_CreateDXGIFactory1 (riid, ppFactory);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'CreateDXGIFactory1'");
+
+    return hr;
 }
 
 HRESULT WINAPI Hooked_CreateDXGIFactory2 (UINT Flags, REFIID riid, void** ppFactory)
 {
-    return Original_CreateDXGIFactory2 (Flags, riid, ppFactory);
+    HRESULT hr = Original_CreateDXGIFactory2 (Flags, riid, ppFactory);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'CreateDXGIFactory2'");
+
+    return hr;
 }
 
 // ============================================================================
