@@ -106,6 +106,7 @@ HRESULT WINAPI Hooked_CreateDXGIFactory2 (UINT Flags, REFIID riid, void** ppFact
 
 // ============================================================================
 
+/// @brief Hook API calls using virtual function tables of dummy objects
 void Hooked_ID3D12Device::Hook ()
 {
     auto hook_once = [] ()
