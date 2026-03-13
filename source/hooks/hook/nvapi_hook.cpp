@@ -11,7 +11,7 @@ module;
 #include <dxgi.h>
 #include <nvapi/nvapi.h>
 
-#include "nvapi_ids.h"
+#include "nvapi_ids.hpp"
 #include "util/log.h"
 
 export module RayBench.Hook:NVAPI.Hook;

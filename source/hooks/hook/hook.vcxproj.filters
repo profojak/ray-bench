@@ -32,10 +32,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="nvapi_ids.hpp">
+    <ClInclude Include="d3d12_vtables.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="d3d12_vtables.hpp">
+    <ClInclude Include="nvapi_ids.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

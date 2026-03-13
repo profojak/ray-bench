@@ -10,7 +10,7 @@ module;
 #include <dxgi.h>
 #include <d3d12.h>
 
-#include "d3d12_vtables.h"
+#include "d3d12_vtables.hpp"
 #include "util/log.h"
 
 export module RayBench.Hook:DirectX12.Hook;
