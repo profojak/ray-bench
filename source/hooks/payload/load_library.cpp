@@ -23,12 +23,14 @@ using raybench::util::UnhookWrap;
 namespace raybench::payload
 {
 
-///< D3D12 dynamic-link library handle
-static HMODULE d3d12_module = nullptr;
-///< DXGI dynamic-link library handle
-static HMODULE dxgi_module = nullptr;
-///< NVAPI dynamic-link library handle
-static HMODULE nvapi_module = nullptr;
+///< D3D12 dynamic-link library load flag
+static bool d3d12_flag = false;
+///< D3D12 Core dynamic-link library load flag
+static bool d3d12core_flag = false;
+///< DXGI dynamic-link library load flag
+static bool dxgi_flag = false;
+///< NVAPI dynamic-link library load flag
+static bool nvapi_flag = false;
 
 // ----------------------------------------------------------------------------
 
@@ -140,84 +142,49 @@ static bool IsBlacklisted (std::basic_string_view<CharT> path)
 // ----------------------------------------------------------------------------
 
 /// @brief Hook API calls if library is already loaded
-/// 
-/// @param system_lib System library to check if already loaded
-/// @return Handle to hooked library if successful, `nullptr` otherwise
-static HMODULE HookLibrary (std::string_view system_lib)
+static bool HookLibrary (std::string_view system_lib, bool (*hook_func)())
 {
-    HMODULE system_module = GetModuleHandleA (system_lib.data ());
-    if (system_module == nullptr)
-    {
-        return nullptr;
-    }
-
-    bool (*hook_func)() = nullptr;
-    if (system_lib == "d3d12.dll"sv || system_lib == "d3d12core.dll"sv)
-    {
-        hook_func = raybench::hook::HookD3D12;
-    }
-    else if (system_lib == "dxgi.dll"sv)
-    {
-        hook_func = raybench::hook::HookCreateDXGIFactory;
-    }
-    else if (system_lib == "nvapi64.dll"sv)
-    {
-        hook_func = raybench::hook::HookNvAPI;
-    }
-    else
-    {
-        return nullptr;
-    }
-
     if (hook_func () == false)
     {
         RAYBENCH_LOG_CRITICAL ("Failed to hook {} API calls!",
                                system_lib);
-        return nullptr;
+        return false;
     }
 
     RAYBENCH_LOG_DEBUG ("Hooked {} API calls",
                         system_lib);
 
-    return system_module;
+    return true;
 }
 
 // ----------------------------------------------------------------------------
 
-/// @brief Hook libraries
-/// 
-/// @return True if hooked, false otherwise
-static void HookLibraries ()
+/// @brief Check if the target libraries are already loaded and hook API calls
+static void HookOnLoad ()
 {
-    static std::filesystem::path dll_path;
-
-    if (dll_path.empty ())
+    if (d3d12_flag == false)
     {
-        const auto env_var = raybench::util::EnvVar::Get (raybench::util::EnvVar::winapi_dll_path);
-        if (env_var.has_value ())
-        {
-            dll_path = std::filesystem::path (env_var.value ()).parent_path ();
-        }
-        else
-        {
-            RAYBENCH_LOG_CRITICAL ("Environment variable for required dynamic-link libraries path not set!");
-            return;
-        }
+        HMODULE module = GetModuleHandleA ("d3d12.dll");
+        if (module)
+            d3d12_flag = HookLibrary ("d3d12.dll", raybench::hook::HookD3D12);
     }
-
-    if (d3d12_module == nullptr && (d3d12_module = HookLibrary ("d3d12.dll")) == nullptr)
+    if (d3d12core_flag == false)
     {
-        d3d12_module = HookLibrary ("d3d12core.dll");
+        HMODULE module = GetModuleHandleA ("d3d12core.dll");
+        if (module)
+            d3d12core_flag = HookLibrary ("d3d12core.dll", raybench::hook::HookD3D12);
     }
-
-    if (dxgi_module == nullptr)
+    if (dxgi_flag == false)
     {
-        dxgi_module = HookLibrary ("dxgi.dll");
+        HMODULE module = GetModuleHandleA ("dxgi.dll");
+        if (module)
+            dxgi_flag = HookLibrary ("dxgi.dll", raybench::hook::HookDXGI);
     }
-
-    if (nvapi_module == nullptr)
+    if (nvapi_flag == false)
     {
-        nvapi_module = HookLibrary ("nvapi64.dll");
+        HMODULE module = GetModuleHandleA ("nvapi64.dll");
+        if (module)
+            nvapi_flag = HookLibrary ("nvapi64.dll", raybench::hook::HookNvAPI);
     }
 }
 
@@ -246,7 +213,7 @@ static HMODULE LoadLibraryImpl (const CharT* lpFileName, Func real_func, Args...
 
     if (guard.GetRef () == 1)
     {
-        HookLibraries ();
+        HookOnLoad ();
     }
 
     SetLastError (last_error);
@@ -319,19 +286,9 @@ static HMODULE Hooked_LoadLibraryExW (LPCWSTR lpLibFileName,
 /// @return True if successful, false otherwise
 export bool HookLoadLibrary ()
 {
-    // Check if libraries are already loaded (statically linked)
-    if (d3d12_module == nullptr && (d3d12_module = HookLibrary ("d3d12.dll")) == nullptr)
-    {
-        d3d12_module = HookLibrary ("d3d12core.dll");
-    }
-    if (dxgi_module == nullptr)
-    {
-        dxgi_module = HookLibrary ("dxgi.dll");
-    }
-    if (nvapi_module == nullptr)
-    {
-        nvapi_module = HookLibrary ("nvapi64.dll");
-    }
+    // Check if libraries are already loaded (they may be statically linked)
+    // and if so, hook the libraries immediately
+    HookOnLoad ();
 
     bool result = true;
 

@@ -157,7 +157,7 @@ void Hooked_ID3D12Device::Hook ()
 
 // ============================================================================
 
-/// @brief Hook `D3D12CreateDevice` and `D3D12GetInterface` API calls
+/// @brief Hook D3D12 API calls
 /// 
 /// @return True if successful, false otherwise
 export bool HookD3D12 ()
@@ -191,7 +191,7 @@ export bool HookD3D12 ()
 
 // ----------------------------------------------------------------------------
 
-/// @brief Unhook `D3D12CreateDevice` and `D3D12GetInterface` API calls
+/// @brief Unhook D3D12 API calls
 /// 
 /// @return True if successful, false otherwise
 export bool UnhookD3D12 ()
@@ -211,10 +211,10 @@ export bool UnhookD3D12 ()
 
 // ============================================================================
 
-/// @brief Hook `CreateDXGIFactory` API calls
+/// @brief Hook DXGI API calls
 /// 
 /// @return True if successful, false otherwise
-export bool HookCreateDXGIFactory ()
+export bool HookDXGI ()
 {
     if (dxgi_module == nullptr)
     {
@@ -245,10 +245,10 @@ export bool HookCreateDXGIFactory ()
 
 // ----------------------------------------------------------------------------
 
-/// @brief Unhook `CreateDXGIFactory` API calls
-/// 
+/// @brief Unhook DXGI API calls
+///
 /// @return True if successful, false otherwise
-export bool UnhookCreateDXGIFactory ()
+export bool UnhookDXGI ()
 {
     bool result = true;
 
