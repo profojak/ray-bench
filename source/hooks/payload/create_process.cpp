@@ -17,6 +17,8 @@ import RayBench.Util;
 import :Guard;
 
 using namespace std::literals;
+using raybench::util::HookWrap;
+using raybench::util::UnhookWrap;
 
 namespace raybench::payload
 {
@@ -246,18 +248,8 @@ export bool HookCreateProcess ()
 {
     bool result = true;
 
-    auto Hook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
-        {
-            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&real_func),
-                                              reinterpret_cast<PVOID>(hook_func)))
-            {
-                RAYBENCH_LOG_CRITICAL ("Failed to hook '{}'", func_name);
-                result = false;
-            }
-        };
-
-    Hook (Original_CreateProcessA, Hooked_CreateProcessA, "CreateProcessA"sv);
-    Hook (Original_CreateProcessW, Hooked_CreateProcessW, "CreateProcessW"sv);
+    result &= HookWrap (Original_CreateProcessA, Hooked_CreateProcessA, "CreateProcessA"sv);
+    result &= HookWrap (Original_CreateProcessW, Hooked_CreateProcessW, "CreateProcessW"sv);
 
     return result;
 }
@@ -270,18 +262,8 @@ export bool UnhookCreateProcess ()
 {
     bool result = true;
 
-    auto Unhook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
-        {
-            if (!raybench::util::UnhookAPICall (reinterpret_cast<PVOID*>(&real_func),
-                                                reinterpret_cast<PVOID>(hook_func)))
-            {
-                RAYBENCH_LOG_CRITICAL ("Failed to unhook '{}'", func_name);
-                result = false;
-            }
-        };
-
-    Unhook (Original_CreateProcessA, Hooked_CreateProcessA, "CreateProcessA"sv);
-    Unhook (Original_CreateProcessW, Hooked_CreateProcessW, "CreateProcessW"sv);
+    result &= UnhookWrap (Original_CreateProcessA, Hooked_CreateProcessA, "CreateProcessA"sv);
+    result &= UnhookWrap (Original_CreateProcessW, Hooked_CreateProcessW, "CreateProcessW"sv);
 
     Original_CreateProcessA = CreateProcessA;
     Original_CreateProcessW = CreateProcessW;

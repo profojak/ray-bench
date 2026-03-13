@@ -12,10 +12,13 @@ module;
 #include <Windows.h>
 #include <detours/detours.h>
 
+#include "log.h"
+
 export module RayBench.Util:Detours;
 
 import std;
 import :Inject;
+import :Log;
 
 namespace raybench::util
 {
@@ -80,6 +83,44 @@ export bool WINAPI UnhookAPICall (PVOID* real_fn, PVOID hook_fn)
 
     error = DetourTransactionCommit ();
     return error == NO_ERROR;
+}
+
+// ============================================================================
+
+/// @brief Helper function to hook an API call and log the result
+///
+/// @param real_func Reference to the original function pointer
+/// @param hook_func Pointer to the hook function
+/// @param func_name Name of the function being hooked (for logging purposes)
+/// @return True if the hook was successful, false otherwise
+export bool HookWrap (auto& real_func, auto hook_func, std::string_view func_name)
+{
+    if (!HookAPICall (reinterpret_cast<PVOID*>(&real_func),
+                      reinterpret_cast<PVOID>(hook_func)))
+    {
+        RAYBENCH_LOG_CRITICAL ("Failed to hook '{}'", func_name);
+        return false;
+    }
+    return true;
+}
+
+// ----------------------------------------------------------------------------
+
+/// @brief Helper function to unhook an API call and log the result
+///
+/// @param real_func Reference to the original function pointer
+/// @param hook_func Pointer to the hook function
+/// @param func_name Name of the function being unhooked (for logging purposes)
+/// @return True if the unhook was successful, false otherwise
+export bool UnhookWrap (auto& real_func, auto hook_func, std::string_view func_name)
+{
+    if (!UnhookAPICall (reinterpret_cast<PVOID*>(&real_func),
+                        reinterpret_cast<PVOID>(hook_func)))
+    {
+        RAYBENCH_LOG_CRITICAL ("Failed to unhook '{}'", func_name);
+        return false;
+    }
+    return true;
 }
 
 }

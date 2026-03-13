@@ -22,6 +22,8 @@ import std;
 import RayBench.Util;
 
 using namespace std::literals;
+using raybench::util::HookWrap;
+using raybench::util::UnhookWrap;
 
 namespace raybench::hook
 {
@@ -53,8 +55,6 @@ NvAPI_Status WINAPI Hooked_NvAPI_Initialize ()
 /// @return True if successful, false otherwise
 export bool HookNvAPI ()
 {
-    bool result = true;
-
     if (nvapi_module == nullptr)
     {
         nvapi_module = GetModuleHandleA ("nvapi64.dll");
@@ -66,6 +66,8 @@ export bool HookNvAPI ()
         }
     }
 
+    bool result = true;
+
     Original_NvAPI_QueryInterface = reinterpret_cast<pfn_NvAPI_QueryInterface> (
         GetProcAddress (nvapi_module, "nvapi_QueryInterface"));
 
@@ -74,19 +76,8 @@ export bool HookNvAPI ()
     Original_NvAPI_DirectD3D12GraphicsCommandList_Create = reinterpret_cast<pfn_NvAPI_DirectD3D12GraphicsCommandList_Create> (
         Original_NvAPI_QueryInterface (static_cast<NvU32>(NvAPI_pfn_ID::NvAPI_DirectD3D12GraphicsCommandList_Create)));
 
-    if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_NvAPI_Initialize),
-                                      reinterpret_cast<PVOID>(Hooked_NvAPI_Initialize)))
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook 'NvAPI_Initialize'!");
-        result = false;
-    }
-
-    if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_NvAPI_DirectD3D12GraphicsCommandList_Create),
-                                      reinterpret_cast<PVOID>(Hooked_NvAPI_DirectD3D12GraphicsCommandList_Create)))
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook 'NvAPI_DirectD3D12GraphicsCommandList_Create'!");
-        result = false;
-    }
+    result &= HookWrap (Original_NvAPI_Initialize, Hooked_NvAPI_Initialize, "NvAPI_Initialize"sv);
+    result &= HookWrap (Original_NvAPI_DirectD3D12GraphicsCommandList_Create, Hooked_NvAPI_DirectD3D12GraphicsCommandList_Create, "NvAPI_DirectD3D12GraphicsCommandList_Create"sv);
 
     return result;
 }
@@ -100,15 +91,13 @@ export bool UnhookNvAPI ()
 {
     bool result = true;
 
-    if (!raybench::util::UnhookAPICall (reinterpret_cast<PVOID*>(&Original_NvAPI_Initialize),
-                                        reinterpret_cast<PVOID>(Hooked_NvAPI_Initialize)))
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to unhook 'NvAPI_Initialize'!");
-        result = false;
-    }
+    UnhookWrap (Original_NvAPI_Initialize, Hooked_NvAPI_Initialize, "NvAPI_Initialize"sv);
+    UnhookWrap (Original_NvAPI_DirectD3D12GraphicsCommandList_Create, Hooked_NvAPI_DirectD3D12GraphicsCommandList_Create, "NvAPI_DirectD3D12GraphicsCommandList_Create"sv);
 
     Original_NvAPI_Initialize = reinterpret_cast<pfn_NvAPI_Initialize> (
         Original_NvAPI_QueryInterface (static_cast<NvU32>(NvAPI_pfn_ID::NvAPI_Initialize)));
+    Original_NvAPI_DirectD3D12GraphicsCommandList_Create = reinterpret_cast<pfn_NvAPI_DirectD3D12GraphicsCommandList_Create> (
+        Original_NvAPI_QueryInterface (static_cast<NvU32>(NvAPI_pfn_ID::NvAPI_DirectD3D12GraphicsCommandList_Create)));
 
     return result;
 }

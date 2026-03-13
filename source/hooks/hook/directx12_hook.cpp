@@ -20,6 +20,8 @@ import std;
 import RayBench.Util;
 
 using namespace std::literals;
+using raybench::util::HookWrap;
+using raybench::util::UnhookWrap;
 
 namespace raybench::hook
 {
@@ -126,17 +128,8 @@ void Hooked_ID3D12Device::Hook ()
             Original_ID3D12Device::CreateCommandList = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList> (
                 vtable[12]);
 
-            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_ID3D12Device::CreateCommandQueue),
-                                              reinterpret_cast<PVOID>(Hooked_ID3D12Device::CreateCommandQueue)))
-            {
-                RAYBENCH_LOG_CRITICAL ("Failed to hook 'ID3D12Device::CreateCommandQueue'!");
-            }
-
-            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_ID3D12Device::CreateCommandList),
-                                              reinterpret_cast<PVOID>(Hooked_ID3D12Device::CreateCommandList)))
-            {
-                RAYBENCH_LOG_CRITICAL ("Failed to hook 'ID3D12Device::CreateCommandList'!");
-            }
+            HookWrap(Original_ID3D12Device::CreateCommandQueue, Hooked_ID3D12Device::CreateCommandQueue, "ID3D12Device::CreateCommandQueue"sv);
+            HookWrap (Original_ID3D12Device::CreateCommandList, Hooked_ID3D12Device::CreateCommandList, "ID3D12Device::CreateCommandList"sv);
 
             ID3D12Device4* device4 = nullptr;
             hr = device->QueryInterface (IID_PPV_ARGS (&device4));
@@ -151,11 +144,7 @@ void Hooked_ID3D12Device::Hook ()
             Original_ID3D12Device::CreateCommandList1 = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList1> (
                 vtable[51]);
 
-            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_ID3D12Device::CreateCommandList1),
-                                              reinterpret_cast<PVOID>(Hooked_ID3D12Device::CreateCommandList1)))
-            {
-                RAYBENCH_LOG_CRITICAL ("Failed to hook 'ID3D12Device4::CreateCommandList1'!");
-            }
+            HookWrap (Original_ID3D12Device::CreateCommandList1, Hooked_ID3D12Device::CreateCommandList1, "ID3D12Device4::CreateCommandList1"sv);
 
             device4->Release ();
             device->Release ();
@@ -172,8 +161,6 @@ void Hooked_ID3D12Device::Hook ()
 /// @return True if successful, false otherwise
 export bool HookD3D12 ()
 {
-    bool result = true;
-
     if (d3d12_module == nullptr)
     {
         d3d12_module = GetModuleHandleA ("d3d12.dll");
@@ -185,23 +172,15 @@ export bool HookD3D12 ()
         }
     }
 
-    auto Hook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
-        {
-            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&real_func),
-                                              reinterpret_cast<PVOID>(hook_func)))
-            {
-                RAYBENCH_LOG_CRITICAL ("Failed to hook '{}'", func_name);
-                result = false;
-            }
-        };
+    bool result = true;
 
     Original_D3D12CreateDevice = reinterpret_cast<pfn_D3D12CreateDevice> (
         GetProcAddress (d3d12_module, "D3D12CreateDevice"));
     Original_D3D12GetInterface = reinterpret_cast<pfn_D3D12GetInterface> (
         GetProcAddress (d3d12_module, "D3D12GetInterface"));
 
-    Hook (Original_D3D12CreateDevice, Hooked_D3D12CreateDevice, "D3D12CreateDevice"sv);
-    Hook (Original_D3D12GetInterface, Hooked_D3D12GetInterface, "D3D12GetInterface"sv);
+    result &= HookWrap (Original_D3D12CreateDevice, Hooked_D3D12CreateDevice, "D3D12CreateDevice"sv);
+    result &= HookWrap (Original_D3D12GetInterface, Hooked_D3D12GetInterface, "D3D12GetInterface"sv);
 
     // Hook API calls using virtual function tables of dummy objects
     Hooked_ID3D12Device::Hook ();
@@ -218,18 +197,8 @@ export bool UnhookD3D12 ()
 {
     bool result = true;
 
-    auto Unhook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
-        {
-            if (!raybench::util::UnhookAPICall (reinterpret_cast<PVOID*>(&real_func),
-                                                reinterpret_cast<PVOID>(hook_func)))
-            {
-                RAYBENCH_LOG_CRITICAL ("Failed to unhook '{}'", func_name);
-                result = false;
-            }
-        };
-
-    Unhook (Original_D3D12CreateDevice, Hooked_D3D12CreateDevice, "D3D12CreateDevice"sv);
-    Unhook (Original_D3D12GetInterface, Hooked_D3D12GetInterface, "D3D12GetInterface"sv);
+    result &= UnhookWrap (Original_D3D12CreateDevice, Hooked_D3D12CreateDevice, "D3D12CreateDevice"sv);
+    result &= UnhookWrap (Original_D3D12GetInterface, Hooked_D3D12GetInterface, "D3D12GetInterface"sv);
 
     Original_D3D12CreateDevice = reinterpret_cast<pfn_D3D12CreateDevice> (
         GetProcAddress (d3d12_module, "D3D12CreateDevice"));
@@ -246,8 +215,6 @@ export bool UnhookD3D12 ()
 /// @return True if successful, false otherwise
 export bool HookCreateDXGIFactory ()
 {
-    bool result = true;
-
     if (dxgi_module == nullptr)
     {
         dxgi_module = GetModuleHandleA ("dxgi.dll");
@@ -259,15 +226,7 @@ export bool HookCreateDXGIFactory ()
         }
     }
 
-    auto Hook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
-        {
-            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&real_func),
-                                              reinterpret_cast<PVOID>(hook_func)))
-            {
-                RAYBENCH_LOG_CRITICAL ("Failed to hook '{}'", func_name);
-                result = false;
-            }
-        };
+    bool result = true;
 
     Original_CreateDXGIFactory = reinterpret_cast<pfn_CreateDXGIFactory> (
         GetProcAddress (dxgi_module, "CreateDXGIFactory"));
@@ -276,9 +235,9 @@ export bool HookCreateDXGIFactory ()
     Original_CreateDXGIFactory2 = reinterpret_cast<pfn_CreateDXGIFactory2> (
         GetProcAddress (dxgi_module, "CreateDXGIFactory2"));
 
-    Hook (Original_CreateDXGIFactory, Hooked_CreateDXGIFactory, "CreateDXGIFactory"sv);
-    Hook (Original_CreateDXGIFactory1, Hooked_CreateDXGIFactory1, "CreateDXGIFactory1"sv);
-    Hook (Original_CreateDXGIFactory2, Hooked_CreateDXGIFactory2, "CreateDXGIFactory2"sv);
+    result &= HookWrap (Original_CreateDXGIFactory, Hooked_CreateDXGIFactory, "CreateDXGIFactory"sv);
+    result &= HookWrap (Original_CreateDXGIFactory1, Hooked_CreateDXGIFactory1, "CreateDXGIFactory1"sv);
+    result &= HookWrap (Original_CreateDXGIFactory2, Hooked_CreateDXGIFactory2, "CreateDXGIFactory2"sv);
 
     return result;
 }
@@ -292,19 +251,9 @@ export bool UnhookCreateDXGIFactory ()
 {
     bool result = true;
 
-    auto Unhook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
-        {
-            if (!raybench::util::UnhookAPICall (reinterpret_cast<PVOID*>(&real_func),
-                                                reinterpret_cast<PVOID>(hook_func)))
-            {
-                RAYBENCH_LOG_CRITICAL ("Failed to unhook '{}'", func_name);
-                result = false;
-            }
-        };
-
-    Unhook (Original_CreateDXGIFactory, Hooked_CreateDXGIFactory, "CreateDXGIFactory"sv);
-    Unhook (Original_CreateDXGIFactory1, Hooked_CreateDXGIFactory1, "CreateDXGIFactory1"sv);
-    Unhook (Original_CreateDXGIFactory2, Hooked_CreateDXGIFactory2, "CreateDXGIFactory2"sv);
+    result &= UnhookWrap (Original_CreateDXGIFactory, Hooked_CreateDXGIFactory, "CreateDXGIFactory"sv);
+    result &= UnhookWrap (Original_CreateDXGIFactory1, Hooked_CreateDXGIFactory1, "CreateDXGIFactory1"sv);
+    result &= UnhookWrap (Original_CreateDXGIFactory2, Hooked_CreateDXGIFactory2, "CreateDXGIFactory2"sv);
 
     Original_CreateDXGIFactory = reinterpret_cast<pfn_CreateDXGIFactory> (
         GetProcAddress (dxgi_module, "CreateDXGIFactory"));

@@ -17,6 +17,8 @@ import RayBench.Util;
 import :Guard;
 
 using namespace std::literals;
+using raybench::util::HookWrap;
+using raybench::util::UnhookWrap;
 
 namespace raybench::payload
 {
@@ -333,21 +335,11 @@ export bool HookLoadLibrary ()
 
     bool result = true;
 
-    auto Hook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
-        {
-            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&real_func),
-                                              reinterpret_cast<PVOID>(hook_func)))
-            {
-                RAYBENCH_LOG_CRITICAL ("Failed to hook '{}'", func_name);
-                result = false;
-            }
-        };
-
-    Hook (Original_FreeLibrary, Hooked_FreeLibrary, "FreeLibrary"sv);
-    Hook (Original_LoadLibraryA, Hooked_LoadLibraryA, "LoadLibraryA"sv);
-    Hook (Original_LoadLibraryExA, Hooked_LoadLibraryExA, "LoadLibraryExA"sv);
-    Hook (Original_LoadLibraryW, Hooked_LoadLibraryW, "LoadLibraryW"sv);
-    Hook (Original_LoadLibraryExW, Hooked_LoadLibraryExW, "LoadLibraryExW"sv);
+    result &= HookWrap (Original_FreeLibrary, Hooked_FreeLibrary, "FreeLibrary"sv);
+    result &= HookWrap (Original_LoadLibraryA, Hooked_LoadLibraryA, "LoadLibraryA"sv);
+    result &= HookWrap (Original_LoadLibraryExA, Hooked_LoadLibraryExA, "LoadLibraryExA"sv);
+    result &= HookWrap (Original_LoadLibraryW, Hooked_LoadLibraryW, "LoadLibraryW"sv);
+    result &= HookWrap (Original_LoadLibraryExW, Hooked_LoadLibraryExW, "LoadLibraryExW"sv);
 
     return result;
 }
@@ -360,21 +352,11 @@ export bool UnhookLoadLibrary ()
 {
     bool result = true;
 
-    auto Unhook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
-        {
-            if (!raybench::util::UnhookAPICall (reinterpret_cast<PVOID*>(&real_func),
-                                                reinterpret_cast<PVOID>(hook_func)))
-            {
-                RAYBENCH_LOG_CRITICAL ("Failed to unhook '{}'", func_name);
-                result = false;
-            }
-        };
-
-    Unhook (Original_FreeLibrary, Hooked_FreeLibrary, "FreeLibrary"sv);
-    Unhook (Original_LoadLibraryA, Hooked_LoadLibraryA, "LoadLibraryA"sv);
-    Unhook (Original_LoadLibraryExA, Hooked_LoadLibraryExA, "LoadLibraryExA"sv);
-    Unhook (Original_LoadLibraryW, Hooked_LoadLibraryW, "LoadLibraryW"sv);
-    Unhook (Original_LoadLibraryExW, Hooked_LoadLibraryExW, "LoadLibraryExW"sv);
+    result &= UnhookWrap (Original_FreeLibrary, Hooked_FreeLibrary, "FreeLibrary"sv);
+    result &= UnhookWrap (Original_LoadLibraryA, Hooked_LoadLibraryA, "LoadLibraryA"sv);
+    result &= UnhookWrap (Original_LoadLibraryExA, Hooked_LoadLibraryExA, "LoadLibraryExA"sv);
+    result &= UnhookWrap (Original_LoadLibraryW, Hooked_LoadLibraryW, "LoadLibraryW"sv);
+    result &= UnhookWrap (Original_LoadLibraryExW, Hooked_LoadLibraryExW, "LoadLibraryExW"sv);
 
     Original_FreeLibrary = FreeLibrary;
     Original_LoadLibraryA = LoadLibraryA;
