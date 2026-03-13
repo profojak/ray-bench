@@ -161,7 +161,7 @@ HMODULE HookLibrary (std::string_view system_lib)
     pfn_Hook hook_func = nullptr;
     if (system_lib == "d3d12.dll"sv)
     {
-        hook_func = reinterpret_cast<pfn_Hook>(raybench::hook::HookD3D12CreateDevice);
+        hook_func = raybench::hook::HookD3D12;
     }
     else if (system_lib == "dxgi.dll"sv)
     {

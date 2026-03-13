@@ -17,6 +17,12 @@ namespace raybench::hook
 
 // ============================================================================
 
+using pfn_D3D12GetInterface = HRESULT (WINAPI*)(REFCLSID, REFIID, void**);
+
+pfn_D3D12GetInterface Original_D3D12GetInterface = nullptr;
+
+// ----------------------------------------------------------------------------
+
 using pfn_D3D12CreateDevice = HRESULT (WINAPI*)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void**);
 
 pfn_D3D12CreateDevice Original_D3D12CreateDevice = nullptr;

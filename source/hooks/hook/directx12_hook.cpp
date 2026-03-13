@@ -31,6 +31,13 @@ static HMODULE dxgi_module = nullptr;
 
 // ============================================================================
 
+HRESULT WINAPI Hooked_D3D12GetInterface (REFCLSID rclsid, REFIID riid, void** ppvDebug)
+{
+    return Original_D3D12GetInterface (rclsid, riid, ppvDebug);
+}
+
+// ----------------------------------------------------------------------------
+
 HRESULT WINAPI Hooked_D3D12CreateDevice (IUnknown* pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel,
                                          REFIID riid, void** ppDevice)
 {
@@ -56,10 +63,10 @@ HRESULT WINAPI Hooked_CreateDXGIFactory2 (UINT Flags, REFIID riid, void** ppFact
 
 // ============================================================================
 
-/// @brief Hook `D3D12CreateDevice` API call
+/// @brief Hook `D3D12CreateDevice` and `D3D12GetInterface` API calls
 /// 
 /// @return True if successful, false otherwise
-export bool HookD3D12CreateDevice ()
+export bool HookD3D12 ()
 {
     bool result = true;
 
@@ -74,36 +81,53 @@ export bool HookD3D12CreateDevice ()
         }
     }
 
+    auto Hook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
+        {
+            if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&real_func),
+                                              reinterpret_cast<PVOID>(hook_func)))
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to hook '{}'", func_name);
+                result = false;
+            }
+        };
+
     Original_D3D12CreateDevice = reinterpret_cast<pfn_D3D12CreateDevice> (
         GetProcAddress (d3d12_module, "D3D12CreateDevice"));
+    Original_D3D12GetInterface = reinterpret_cast<pfn_D3D12GetInterface> (
+        GetProcAddress (d3d12_module, "D3D12GetInterface"));
 
-    if (!raybench::util::HookAPICall (reinterpret_cast<PVOID*>(&Original_D3D12CreateDevice),
-                                      reinterpret_cast<PVOID>(Hooked_D3D12CreateDevice)))
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to hook 'D3D12CreateDevice'!");
-        result = false;
-    }
+    Hook (Original_D3D12CreateDevice, Hooked_D3D12CreateDevice, "D3D12CreateDevice"sv);
+    Hook (Original_D3D12GetInterface, Hooked_D3D12GetInterface, "D3D12GetInterface"sv);
+
     return result;
 }
 
 // ----------------------------------------------------------------------------
 
-/// @brief Unhook `D3D12CreateDevice` API call
+/// @brief Unhook `D3D12CreateDevice` and `D3D12GetInterface` API calls
 /// 
 /// @return True if successful, false otherwise
-export bool UnhookD3D12CreateDevice ()
+export bool UnhookD3D12 ()
 {
     bool result = true;
 
-    if (!raybench::util::UnhookAPICall (reinterpret_cast<PVOID*>(&Original_D3D12CreateDevice),
-                                        reinterpret_cast<PVOID>(Hooked_D3D12CreateDevice)))
-    {
-        RAYBENCH_LOG_CRITICAL ("Failed to unhook 'D3D12CreateDevice'!");
-        result = false;
-    }
+    auto Unhook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
+        {
+            if (!raybench::util::UnhookAPICall (reinterpret_cast<PVOID*>(&real_func),
+                                                reinterpret_cast<PVOID>(hook_func)))
+            {
+                RAYBENCH_LOG_CRITICAL ("Failed to unhook '{}'", func_name);
+                result = false;
+            }
+        };
+
+    Unhook (Original_D3D12CreateDevice, Hooked_D3D12CreateDevice, "D3D12CreateDevice"sv);
+    Unhook (Original_D3D12GetInterface, Hooked_D3D12GetInterface, "D3D12GetInterface"sv);
 
     Original_D3D12CreateDevice = reinterpret_cast<pfn_D3D12CreateDevice> (
         GetProcAddress (d3d12_module, "D3D12CreateDevice"));
+    Original_D3D12GetInterface = reinterpret_cast<pfn_D3D12GetInterface> (
+        GetProcAddress (d3d12_module, "D3D12GetInterface"));
 
     return result;
 }
