@@ -80,7 +80,6 @@ using pfn_LoadLibraryA = HMODULE (WINAPI*)(LPCSTR);
 using pfn_LoadLibraryExA = HMODULE (WINAPI*)(LPCSTR, HANDLE, DWORD);
 using pfn_LoadLibraryW = HMODULE (WINAPI*)(LPCWSTR);
 using pfn_LoadLibraryExW = HMODULE (WINAPI*)(LPCWSTR, HANDLE, DWORD);
-using pfn_Hook = bool (*)();
 
 pfn_FreeLibrary Original_FreeLibrary = FreeLibrary;
 pfn_LoadLibraryA Original_LoadLibraryA = LoadLibraryA;
@@ -133,13 +132,7 @@ static bool IsBlacklisted (std::basic_string_view<CharT> path)
         return true;
 
     // Check against the blacklist array
-    for (const auto& lib : blacklisted_libraries)
-    {
-        if (lower_name == lib)
-            return true;
-    }
-
-    return false;
+    return std::ranges::contains (blacklisted_libraries, lower_name);
 }
 
 // ----------------------------------------------------------------------------
@@ -153,19 +146,17 @@ HMODULE HookLibrary (std::string_view system_lib)
     HMODULE system_module = GetModuleHandleA (system_lib.data ());
     if (system_module == nullptr)
     {
-        RAYBENCH_LOG_TRACE ("Skipping unloaded dynamic-link library: {}...",
-                            system_lib);
         return nullptr;
     }
 
-    pfn_Hook hook_func = nullptr;
-    if (system_lib == "d3d12.dll"sv)
+    bool (*hook_func)() = nullptr;
+    if (system_lib == "d3d12.dll"sv || system_lib == "d3d12core.dll"sv)
     {
         hook_func = raybench::hook::HookD3D12;
     }
     else if (system_lib == "dxgi.dll"sv)
     {
-        hook_func = reinterpret_cast<pfn_Hook>(raybench::hook::HookCreateDXGIFactory);
+        hook_func = raybench::hook::HookCreateDXGIFactory;
     }
     else if (system_lib == "nvapi64.dll"sv)
     {
@@ -177,8 +168,7 @@ HMODULE HookLibrary (std::string_view system_lib)
         return nullptr;
     }
 
-    bool result = hook_func ();
-    if (result == false)
+    if (hook_func () == false)
     {
         RAYBENCH_LOG_CRITICAL ("Failed to hook {} API calls!",
                                system_lib);
@@ -186,7 +176,7 @@ HMODULE HookLibrary (std::string_view system_lib)
     }
 
     RAYBENCH_LOG_DEBUG ("Hooked {} API calls",
-                       system_lib);
+                        system_lib);
 
     return system_module;
 }
@@ -214,9 +204,9 @@ static void HookLibraries ()
         }
     }
 
-    if (d3d12_module == nullptr)
+    if (d3d12_module == nullptr && (d3d12_module = HookLibrary ("d3d12.dll")) == nullptr)
     {
-        d3d12_module = HookLibrary ("d3d12.dll");
+        d3d12_module = HookLibrary ("d3d12core.dll");
     }
 
     if (dxgi_module == nullptr)
@@ -328,6 +318,20 @@ static HMODULE Hooked_LoadLibraryExW (LPCWSTR lpLibFileName,
 /// @return True if successful, false otherwise
 export bool HookLoadLibrary ()
 {
+    // Check if libraries are already loaded (statically linked)
+    if (d3d12_module == nullptr && (d3d12_module = HookLibrary ("d3d12.dll")) == nullptr)
+    {
+        d3d12_module = HookLibrary ("d3d12core.dll");
+    }
+    if (dxgi_module == nullptr)
+    {
+        dxgi_module = HookLibrary ("dxgi.dll");
+    }
+    if (nvapi_module == nullptr)
+    {
+        nvapi_module = HookLibrary ("nvapi64.dll");
+    }
+
     bool result = true;
 
     auto Hook = [&result] (auto& real_func, auto hook_func, std::string_view func_name)
