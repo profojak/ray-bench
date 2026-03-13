@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 NVAPI_LIB_PATH = "../../../external/nvapi/amd64/nvapi64.lib"
-NVAPI_HEADER_PATH = "../../../source/hooks/hook/nvapi_ids.h"
+HEADER_OUTPUT_PATH = "../../../source/hooks/hook/nvapi_ids.h"
 
 def extract_nvapi_magic_ids(lib_path: str | Path, output_file: str | Path = "nvapi.txt"):
     """
@@ -20,7 +20,7 @@ def extract_nvapi_magic_ids(lib_path: str | Path, output_file: str | Path = "nva
 
     lib_path = Path(lib_path).resolve()
     log_path = Path(output_file).resolve()
-    header_path = Path(NVAPI_HEADER_PATH).resolve()
+    header_path = Path(HEADER_OUTPUT_PATH).resolve()
     asm_path = log_path.with_suffix('.asm')
 
     if not lib_path.exists():
