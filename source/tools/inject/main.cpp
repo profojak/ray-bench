@@ -38,41 +38,75 @@ static void PrintHelp (const std::string_view path)
 /// @return Return code
 int main (int argc, const char** argv)
 {
-    raybench::util::Log::Settings log_settings {
-        .min_severity = raybench::util::Log::Severity::trace,
-        .output_timestamps = true,
-        .listen_to_named_pipe = true,
-    };
+    // Get logging settings from environment variable
+    raybench::util::Log::Settings log_settings {};
 
+    auto env_log_settings = raybench::util::EnvVar::Get (raybench::util::EnvVar::log_settings);
+    if (env_log_settings.has_value ())
+    {
+        log_settings.Deserialize (env_log_settings.value ());
+    }
+
+    log_settings.min_severity = raybench::util::Log::Severity::trace;
+    log_settings.output_timestamps = true;
+    log_settings.listen_to_named_pipe = true;
+
+    // Get logging settings from command line arguments and initialize
     raybench::util::Log::Initialize (log_settings);
     raybench::util::Arg args (argc, argv, options, "");
 
     RAYBENCH_LOG_INFO ("Started inject tool");
     RAYBENCH_LOG_TRACE ("Parsing command line arguments...");
 
-    if (args.IsInvalid () || args.GetPositionalArguments ().size () == 0 ||
-        args.IsOptionSet ("--help") || args.IsOptionSet ("-h"))
+    if (args.IsInvalid () || args.IsOptionSet ("--help") || args.IsOptionSet ("-h"))
     {
         PrintHelp (argv[0]);
         raybench::util::Log::Release ();
         return 1;
     }
 
+    // Get the target application path from environment variable or command line argument
+    std::string target_app_path;
+    auto envvar_target_app_path = raybench::util::EnvVar::Get (raybench::util::EnvVar::target_app_path);
+    if (envvar_target_app_path.has_value ())
+    {
+        target_app_path = envvar_target_app_path.value ();
+    }
+    else
+    {
+        if (args.GetPositionalArguments ().size () == 0)
+        {
+            PrintHelp (argv[0]);
+            raybench::util::Log::Release ();
+            return 1;
+        }
+        target_app_path = args.GetPositionalArguments ().front ();
+    }
+
     // Get the process paths matching the specified target
-    auto create_process_info = raybench::util::GetCreateProcessInfo (args.GetPositionalArguments ().front ());
+    auto create_process_info = raybench::util::GetCreateProcessInfo (target_app_path);
     if (create_process_info.has_value () == false)
     {
-        RAYBENCH_LOG_CRITICAL ("Failed to get process information for target: {}",
-                               args.GetPositionalArguments ().front ());
+        RAYBENCH_LOG_CRITICAL ("Failed to get process information for target: {}", target_app_path);
         raybench::util::Log::Release ();
         return 1;
     }
 
-    RAYBENCH_LOG_DEBUG ("Process information obtained successfully for target: {}",
-                        args.GetPositionalArguments ().front ());
+    RAYBENCH_LOG_DEBUG ("Process information obtained successfully for target: {}", target_app_path);
 
-    // Ensure the required dynamic-link library exists before attempting injection
-    std::filesystem::path dll_path = std::filesystem::path (argv[0]).parent_path () / "ray-bench-payload.dll";
+    // Get the payload dynamic-link library path from environment variable
+    std::filesystem::path dll_path;
+    auto envvar_payload_dll_path = raybench::util::EnvVar::Get (raybench::util::EnvVar::payload_dll_path);
+    if (envvar_payload_dll_path.has_value ())
+    {
+        dll_path = envvar_payload_dll_path.value ();
+    }
+    else
+    {
+        dll_path = std::filesystem::path (argv[0]).parent_path () / "ray-bench-payload.dll";
+    }
+
+    // Ensure the required dynamic-link library exists before injecting
     if (std::filesystem::exists (dll_path) == false)
     {
         RAYBENCH_LOG_CRITICAL ("Required dynamic-link library not found for injection: {}",
@@ -84,7 +118,7 @@ int main (int argc, const char** argv)
                         dll_path.string ());
     RAYBENCH_LOG_TRACE ("Setting environment variable for required dynamic-link library path...");
 
-    raybench::util::EnvVar::Set (raybench::util::EnvVar::winapi_dll_path, dll_path.string ());
+    raybench::util::EnvVar::Set (raybench::util::EnvVar::payload_dll_path, dll_path.string ());
 
     RAYBENCH_LOG_TRACE ("Setting environment variable for logging settings...");
 

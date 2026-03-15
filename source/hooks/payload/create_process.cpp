@@ -162,22 +162,22 @@ static BOOL CreateProcessImpl (const CharT* lpApplicationName,
 
     RAYBENCH_LOG_TRACE_ONCE ("Reinjecting and reconnecting to a new process...");
 
-    auto winapi_dll_path = raybench::util::EnvVar::Get (raybench::util::EnvVar::winapi_dll_path);
-    if (winapi_dll_path.has_value ())
+    auto payload_dll_path = raybench::util::EnvVar::Get (raybench::util::EnvVar::payload_dll_path);
+    if (payload_dll_path.has_value ())
     {
         if constexpr (std::is_same_v<CharT, char>)
         {
-            return raybench::util::LaunchInjectA (lpApplicationName, lpCommandLine, args..., winapi_dll_path.value ().data ());
+            return raybench::util::LaunchInjectA (lpApplicationName, lpCommandLine, args..., payload_dll_path.value ().data ());
         }
         else
         {
-            return raybench::util::LaunchInjectW (lpApplicationName, lpCommandLine, args..., winapi_dll_path.value ().data ());
+            return raybench::util::LaunchInjectW (lpApplicationName, lpCommandLine, args..., payload_dll_path.value ().data ());
         }
     }
     else
     {
         RAYBENCH_LOG_CRITICAL ("Environment variable '{}' not set",
-                               raybench::util::EnvVar::winapi_dll_path);
+                               raybench::util::EnvVar::payload_dll_path);
         return FALSE;
     }
 }
@@ -188,15 +188,15 @@ static BOOL CreateProcessImpl (const CharT* lpApplicationName,
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
 static BOOL WINAPI Hooked_CreateProcessA (LPCSTR lpApplicationName,
-                                        LPSTR lpCommandLine,
-                                        LPSECURITY_ATTRIBUTES lpProcessAttributes,
-                                        LPSECURITY_ATTRIBUTES lpThreadAttributes,
-                                        BOOL bInheritHandles,
-                                        DWORD dwCreationFlags,
-                                        LPVOID lpEnvironment,
-                                        LPCSTR lpCurrentDirectory,
-                                        LPSTARTUPINFOA lpStartupInfo,
-                                        LPPROCESS_INFORMATION lpProcessInformation)
+                                          LPSTR lpCommandLine,
+                                          LPSECURITY_ATTRIBUTES lpProcessAttributes,
+                                          LPSECURITY_ATTRIBUTES lpThreadAttributes,
+                                          BOOL bInheritHandles,
+                                          DWORD dwCreationFlags,
+                                          LPVOID lpEnvironment,
+                                          LPCSTR lpCurrentDirectory,
+                                          LPSTARTUPINFOA lpStartupInfo,
+                                          LPPROCESS_INFORMATION lpProcessInformation)
 {
     return CreateProcessImpl (lpApplicationName,
                               lpCommandLine,
@@ -217,15 +217,15 @@ static BOOL WINAPI Hooked_CreateProcessA (LPCSTR lpApplicationName,
 /// 
 /// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw
 static BOOL WINAPI Hooked_CreateProcessW (LPCWSTR lpApplicationName,
-                                        LPWSTR lpCommandLine,
-                                        LPSECURITY_ATTRIBUTES lpProcessAttributes,
-                                        LPSECURITY_ATTRIBUTES lpThreadAttributes,
-                                        BOOL bInheritHandles,
-                                        DWORD dwCreationFlags,
-                                        LPVOID lpEnvironment,
-                                        LPCWSTR lpCurrentDirectory,
-                                        LPSTARTUPINFOW lpStartupInfo,
-                                        LPPROCESS_INFORMATION lpProcessInformation)
+                                          LPWSTR lpCommandLine,
+                                          LPSECURITY_ATTRIBUTES lpProcessAttributes,
+                                          LPSECURITY_ATTRIBUTES lpThreadAttributes,
+                                          BOOL bInheritHandles,
+                                          DWORD dwCreationFlags,
+                                          LPVOID lpEnvironment,
+                                          LPCWSTR lpCurrentDirectory,
+                                          LPSTARTUPINFOW lpStartupInfo,
+                                          LPPROCESS_INFORMATION lpProcessInformation)
 {
     return CreateProcessImpl (lpApplicationName,
                               lpCommandLine,
