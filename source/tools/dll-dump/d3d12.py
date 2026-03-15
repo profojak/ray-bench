@@ -1,5 +1,5 @@
 """
-Extracts VTable IDs of DirectX 12 interfaces by parsing C-style dxgi.h.
+Extracts VTable IDs of DirectX 12 interfaces by parsing C-style d3d12.h.
 """
 
 import re
