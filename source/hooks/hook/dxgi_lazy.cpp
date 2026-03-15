@@ -34,8 +34,6 @@ namespace raybench::hook
 /// @return True if successful, false otherwise
 bool Hooked_IDXGISwapChain::LazyHook (void** ppSwapChain)
 {
-    extern bool is_hooked;
-
     if (ppSwapChain != nullptr && *ppSwapChain != nullptr)
     {
         IDXGISwapChain* swap_chain = reinterpret_cast<IDXGISwapChain*>(*ppSwapChain);
@@ -61,7 +59,6 @@ bool Hooked_IDXGISwapChain::LazyHook (void** ppSwapChain)
                 vtable[static_cast<int>(IDXGISwapChain1_VTable_ID::Present1)]);
             HookWrap (Original_IDXGISwapChain::Present1, Present1, "IDXGISwapChain::Present1"sv);
         }
-        is_hooked = true;
     }
     return true;
 }
@@ -74,8 +71,6 @@ bool Hooked_IDXGISwapChain::LazyHook (void** ppSwapChain)
 /// @return True if successful, false otherwise
 bool Hooked_IDXGIFactory::LazyHook (void** ppFactory)
 {
-    extern bool is_hooked;
-
     if (ppFactory != nullptr && *ppFactory != nullptr)
     {
         IDXGIFactory* factory = reinterpret_cast<IDXGIFactory*>(*ppFactory);
@@ -129,8 +124,6 @@ bool Hooked_IDXGIFactory::LazyHook (void** ppFactory)
             HookWrap (Original_IDXGIFactory::CreateSwapChainForComposition, CreateSwapChainForComposition,
                       "IDXGIFactory2::CreateSwapChainForComposition"sv);
         }
-
-        is_hooked = true;
     }
     return true;
 }

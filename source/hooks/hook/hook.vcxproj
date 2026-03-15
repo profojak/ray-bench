@@ -133,6 +133,7 @@
   <ItemGroup>
     <ClInclude Include="d3d12_vtables.hpp" />
     <ClInclude Include="dxgi_vtables.hpp" />
+    <ClInclude Include="lazy_hook.hpp" />
     <ClInclude Include="nvapi_ids.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

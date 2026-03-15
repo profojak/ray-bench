@@ -9,6 +9,7 @@ module;
 #include <Windows.h>
 #include <d3d12.h>
 
+#include "lazy_hook.hpp"
 #include "util/log.h"
 
 export module RayBench.Hook:D3D12.Hook;
@@ -32,11 +33,7 @@ static HMODULE d3d12_module = nullptr;
 
 namespace Hooked_ID3D12GraphicsCommandList
 {
-bool is_hooked = false;
-
-bool LazyHook (void** ppCommandList);
-
-// ----------------------------------------------------------------------------
+RAYBENCH_LAZY_INIT;
 
 void WINAPI BuildRaytracingAccelerationStructure (
     ID3D12GraphicsCommandList4* This,
@@ -56,11 +53,7 @@ void WINAPI BuildRaytracingAccelerationStructure (
 
 namespace Hooked_ID3D12Device
 {
-bool is_hooked = false;
-
-bool LazyHook (void** ppDevice);
-
-// ----------------------------------------------------------------------------
+RAYBENCH_LAZY_INIT;
 
 HRESULT WINAPI CreateCommandList (ID3D12Device* This,
                                   UINT nodeMask,
@@ -75,10 +68,7 @@ HRESULT WINAPI CreateCommandList (ID3D12Device* This,
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandList'");
 
-    if (Hooked_ID3D12GraphicsCommandList::is_hooked == false && SUCCEEDED (hr))
-    {
-        Hooked_ID3D12GraphicsCommandList::LazyHook (ppCommandList);
-    }
+    RAYBENCH_LAZY_HOOK (SUCCEEDED (hr), Hooked_ID3D12GraphicsCommandList, ppCommandList);
 
     return hr;
 }
@@ -98,10 +88,7 @@ HRESULT WINAPI CreateCommandList1 (ID3D12Device4* This,
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandList1'");
 
-    if (Hooked_ID3D12GraphicsCommandList::is_hooked == false && SUCCEEDED (hr))
-    {
-        Hooked_ID3D12GraphicsCommandList::LazyHook (ppCommandList);
-    }
+    RAYBENCH_LAZY_HOOK (SUCCEEDED (hr), Hooked_ID3D12GraphicsCommandList, ppCommandList);
 
     return hr;
 }
@@ -128,10 +115,7 @@ HRESULT WINAPI Hooked_D3D12CreateDevice (IUnknown* pAdapter, D3D_FEATURE_LEVEL M
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'D3D12CreateDevice'");
 
-    if (Hooked_ID3D12Device::is_hooked == false && SUCCEEDED (hr))
-    {
-        Hooked_ID3D12Device::LazyHook (ppDevice);
-    }
+    RAYBENCH_LAZY_HOOK (SUCCEEDED (hr), Hooked_ID3D12Device, ppDevice);
 
     return hr;
 }

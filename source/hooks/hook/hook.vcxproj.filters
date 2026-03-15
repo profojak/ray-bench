@@ -53,5 +53,8 @@
     <ClInclude Include="dxgi_vtables.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="lazy_hook.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

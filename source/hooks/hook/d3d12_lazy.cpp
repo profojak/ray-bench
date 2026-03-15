@@ -33,8 +33,6 @@ namespace raybench::hook
 /// @return True if successful, false otherwise
 bool Hooked_ID3D12GraphicsCommandList::LazyHook (void** ppCommandList)
 {
-    extern bool is_hooked;
-
     if (ppCommandList != nullptr && *ppCommandList != nullptr)
     {
         ID3D12GraphicsCommandList4* command_list4 = nullptr;
@@ -54,8 +52,6 @@ bool Hooked_ID3D12GraphicsCommandList::LazyHook (void** ppCommandList)
                       BuildRaytracingAccelerationStructure,
                       "ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure"sv);
         }
-
-        is_hooked = true;
     }
     return true;
 }
@@ -68,8 +64,6 @@ bool Hooked_ID3D12GraphicsCommandList::LazyHook (void** ppCommandList)
 /// @return True if successful, false otherwise
 bool Hooked_ID3D12Device::LazyHook (void** ppDevice)
 {
-    extern bool is_hooked;
-
     if (ppDevice != nullptr && *ppDevice != nullptr)
     {
         ID3D12Device* device = reinterpret_cast<ID3D12Device*>(*ppDevice);
@@ -101,8 +95,6 @@ bool Hooked_ID3D12Device::LazyHook (void** ppDevice)
             HookWrap (Original_ID3D12Device::CreateCommandList1, CreateCommandList1,
                       "ID3D12Device4::CreateCommandList1"sv);
         }
-
-        is_hooked = true;
     }
     return true;
 }
