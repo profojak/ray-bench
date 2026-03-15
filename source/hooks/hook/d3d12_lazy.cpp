@@ -48,10 +48,18 @@ bool Hooked_ID3D12GraphicsCommandList::LazyHook (void** ppCommandList)
                 reinterpret_cast<Original_ID3D12GraphicsCommandList::pfn_BuildRaytracingAccelerationStructure> (
                     vtable[static_cast<int>(ID3D12GraphicsCommandList4_VTable_ID::BuildRaytracingAccelerationStructure)]);
 
-            HookWrap (Original_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure,
-                      BuildRaytracingAccelerationStructure,
-                      "ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure"sv);
+            bool result = HookWrap (Original_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure,
+                                    BuildRaytracingAccelerationStructure,
+                                    "ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure"sv);
+            if (result == false)
+            {
+                return false;
+            }
         }
+    }
+    else
+    {
+        return false;
     }
     return true;
 }
@@ -75,8 +83,12 @@ bool Hooked_ID3D12Device::LazyHook (void** ppDevice)
             Original_ID3D12Device::CreateCommandList = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList> (
                 vtable[static_cast<int>(ID3D12Device_VTable_ID::CreateCommandList)]);
 
-            HookWrap (Original_ID3D12Device::CreateCommandList, CreateCommandList,
-                      "ID3D12Device::CreateCommandList"sv);
+            bool result = HookWrap (Original_ID3D12Device::CreateCommandList, CreateCommandList,
+                                    "ID3D12Device::CreateCommandList"sv);
+            if (result == false)
+            {
+                return false;
+            }
         }
 
         ID3D12Device4* device4 = nullptr;
@@ -92,9 +104,17 @@ bool Hooked_ID3D12Device::LazyHook (void** ppDevice)
             Original_ID3D12Device::CreateCommandList1 = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList1> (
                 vtable[static_cast<int>(ID3D12Device4_VTable_ID::CreateCommandList1)]);
 
-            HookWrap (Original_ID3D12Device::CreateCommandList1, CreateCommandList1,
-                      "ID3D12Device4::CreateCommandList1"sv);
+            bool result = HookWrap (Original_ID3D12Device::CreateCommandList1, CreateCommandList1,
+                                    "ID3D12Device4::CreateCommandList1"sv);
+            if (result == false)
+            {
+                return false;
+            }
         }
+    }
+    else
+    {
+        return false;
     }
     return true;
 }

@@ -43,7 +43,11 @@ bool Hooked_IDXGISwapChain::LazyHook (void** ppSwapChain)
             void** vtable = *reinterpret_cast<void***> (swap_chain);
             Original_IDXGISwapChain::Present = reinterpret_cast<Original_IDXGISwapChain::pfn_Present> (
                 vtable[static_cast<int>(IDXGISwapChain_VTable_ID::Present)]);
-            HookWrap (Original_IDXGISwapChain::Present, Present, "IDXGISwapChain::Present"sv);
+            bool result = HookWrap (Original_IDXGISwapChain::Present, Present, "IDXGISwapChain::Present"sv);
+            if (result == false)
+            {
+                return false;
+            }
         }
 
         IDXGISwapChain1* swap_chain1 = nullptr;
@@ -57,8 +61,16 @@ bool Hooked_IDXGISwapChain::LazyHook (void** ppSwapChain)
             void** vtable = *reinterpret_cast<void***> (swap_chain1);
             Original_IDXGISwapChain::Present1 = reinterpret_cast<Original_IDXGISwapChain::pfn_Present1> (
                 vtable[static_cast<int>(IDXGISwapChain1_VTable_ID::Present1)]);
-            HookWrap (Original_IDXGISwapChain::Present1, Present1, "IDXGISwapChain::Present1"sv);
+            bool result = HookWrap (Original_IDXGISwapChain::Present1, Present1, "IDXGISwapChain::Present1"sv);
+            if (result == false)
+            {
+                return false;
+            }
         }
+    }
+    else
+    {
+        return false;
     }
     return true;
 }
@@ -82,8 +94,12 @@ bool Hooked_IDXGIFactory::LazyHook (void** ppFactory)
             Original_IDXGIFactory::CreateSwapChain = reinterpret_cast<Original_IDXGIFactory::pfn_CreateSwapChain> (
                 vtable[static_cast<int>(IDXGIFactory_VTable_ID::CreateSwapChain)]);
 
-            HookWrap (Original_IDXGIFactory::CreateSwapChain, CreateSwapChain,
-                      "IDXGIFactory::CreateSwapChain"sv);
+            bool result = HookWrap (Original_IDXGIFactory::CreateSwapChain, CreateSwapChain,
+                                    "IDXGIFactory::CreateSwapChain"sv);
+            if (result == false)
+            {
+                return false;
+            }
         }
 
         IDXGIFactory2* factory2 = nullptr;
@@ -99,8 +115,12 @@ bool Hooked_IDXGIFactory::LazyHook (void** ppFactory)
             Original_IDXGIFactory::CreateSwapChainForHwnd = reinterpret_cast<Original_IDXGIFactory::pfn_CreateSwapChainForHwnd> (
                 vtable[static_cast<int>(IDXGIFactory2_VTable_ID::CreateSwapChainForHwnd)]);
 
-            HookWrap (Original_IDXGIFactory::CreateSwapChainForHwnd, CreateSwapChainForHwnd,
-                      "IDXGIFactory2::CreateSwapChainForHwnd"sv);
+            bool result = HookWrap (Original_IDXGIFactory::CreateSwapChainForHwnd, CreateSwapChainForHwnd,
+                                    "IDXGIFactory2::CreateSwapChainForHwnd"sv);
+            if (result == false)
+            {
+                return false;
+            }
         }
 
         if (Original_IDXGIFactory::CreateSwapChainForCoreWindow == nullptr)
@@ -110,8 +130,12 @@ bool Hooked_IDXGIFactory::LazyHook (void** ppFactory)
             Original_IDXGIFactory::CreateSwapChainForCoreWindow = reinterpret_cast<Original_IDXGIFactory::pfn_CreateSwapChainForCoreWindow> (
                 vtable[static_cast<int>(IDXGIFactory2_VTable_ID::CreateSwapChainForCoreWindow)]);
 
-            HookWrap (Original_IDXGIFactory::CreateSwapChainForCoreWindow, CreateSwapChainForCoreWindow,
-                      "IDXGIFactory2::CreateSwapChainForCoreWindow"sv);
+            bool result = HookWrap (Original_IDXGIFactory::CreateSwapChainForCoreWindow, CreateSwapChainForCoreWindow,
+                                    "IDXGIFactory2::CreateSwapChainForCoreWindow"sv);
+            if (result == false)
+            {
+                return false;
+            }
         }
 
         if (Original_IDXGIFactory::CreateSwapChainForComposition == nullptr)
@@ -121,9 +145,17 @@ bool Hooked_IDXGIFactory::LazyHook (void** ppFactory)
             Original_IDXGIFactory::CreateSwapChainForComposition = reinterpret_cast<Original_IDXGIFactory::pfn_CreateSwapChainForComposition> (
                 vtable[static_cast<int>(IDXGIFactory2_VTable_ID::CreateSwapChainForComposition)]);
 
-            HookWrap (Original_IDXGIFactory::CreateSwapChainForComposition, CreateSwapChainForComposition,
-                      "IDXGIFactory2::CreateSwapChainForComposition"sv);
+            bool result = HookWrap (Original_IDXGIFactory::CreateSwapChainForComposition, CreateSwapChainForComposition,
+                                    "IDXGIFactory2::CreateSwapChainForComposition"sv);
+            if (result == false)
+            {
+                return false;
+            }
         }
+    }
+    else
+    {
+        return false;
     }
     return true;
 }
