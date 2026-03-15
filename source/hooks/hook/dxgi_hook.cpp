@@ -8,6 +8,7 @@ module;
 #define NOMINMAX
 #include <Windows.h>
 #include <dxgi.h>
+#include <dxgi1_2.h>
 
 #include "util/log.h"
 

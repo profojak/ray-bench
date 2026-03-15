@@ -4,16 +4,17 @@ Extracts VTable IDs of DirectX 12 interfaces by parsing C-style dxgi.h.
 """
 
 import re
+import os
 
-DXGI_HEADER_PATH = "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared/dxgi.h"
+DXGI_HEADER_PATH = "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared/"
+DXGI_HEADERS = [ "dxgi.h", "dxgi1_2.h", "dxgi1_3.h", "dxgi1_4.h", "dxgi1_5.h", "dxgi1_6.h" ]
 HEADER_OUTPUT_PATH = "../../../source/hooks/hook/dxgi_vtables.hpp"
 
 def extract_vtable_indices(header_path):
     """
     Extracts VTable method names from a C-style header file.
     """
-    with open(header_path, 'r', encoding='utf-8', errors='ignore') as f:
-        content = f.read()
+    vtables = {}
 
     # Regex to find C-style VTable structs like
     # 'typedef struct INameVtbl { ... } INameVtbl;'.
@@ -23,21 +24,31 @@ def extract_vtable_indices(header_path):
     # 'ReturnType ( STDMETHODCALLTYPE *MethodName )( Args );'.
     method_pattern = re.compile(r'\(\s*STDMETHODCALLTYPE\s*\*\s*(\w+)\s*\)')
 
-    vtables = {}
-    for struct_match in struct_pattern.finditer(content):
-        vtable_name = struct_match.group(1)
-        struct_body = struct_match.group(2)
+    for header_name in DXGI_HEADERS:
+        full_path = os.path.join(DXGI_HEADER_PATH, header_name)
+
+        with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+
+        for struct_match in struct_pattern.finditer(content):
+            vtable_name = struct_match.group(1)
+            struct_body = struct_match.group(2)
         
-        interface_name = vtable_name.replace('Vtbl', '')
-        methods = []
+            interface_name = vtable_name.replace('Vtbl', '')
+            methods = method_pattern.findall(struct_body)
         
-        for method_match in method_pattern.finditer(struct_body):
-            method_name = method_match.group(1)
-            if method_name not in methods:
-                methods.append(method_name)
-            
-        if methods:
-            vtables[interface_name] = methods
+            base_interface = None
+            if interface_name[-1].isdigit():
+                version_num = int(interface_name[-1])
+                if version_num > 1:
+                    base_interface = f"{interface_name[:-1]}{version_num - 1}"
+                else:
+                    base_interface = interface_name[:-1]
+
+            if base_interface in vtables:
+                vtables[interface_name] = vtables[base_interface] + methods
+            else:
+                vtables[interface_name] = methods
 
     return vtables
 
