@@ -32,7 +32,7 @@ static HMODULE d3d12_module = nullptr;
 
 namespace Hooked_ID3D12GraphicsCommandList
 {
-bool is_hooked = true;
+bool is_hooked = false;
 
 bool LazyHook (void** ppCommandList);
 
@@ -56,7 +56,7 @@ void WINAPI BuildRaytracingAccelerationStructure (
 
 namespace Hooked_ID3D12Device
 {
-bool is_hooked = true;
+bool is_hooked = false;
 
 bool LazyHook (void** ppDevice);
 
