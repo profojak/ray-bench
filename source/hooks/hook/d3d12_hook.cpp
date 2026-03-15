@@ -47,7 +47,7 @@ void WINAPI BuildRaytracingAccelerationStructure (
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure'");
 }
 
-};
+}
 
 // ============================================================================
 
@@ -125,7 +125,8 @@ HRESULT WINAPI CreateCommandList1 (ID3D12Device4* This,
 
     return hr;
 }
-};
+
+}
 
 // ============================================================================
 

@@ -25,7 +25,7 @@ using pfn_BuildRaytracingAccelerationStructure = void (WINAPI*) (
     const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC*);
 
 pfn_BuildRaytracingAccelerationStructure BuildRaytracingAccelerationStructure = nullptr;
-};
+}
 
 // ============================================================================
 
@@ -57,7 +57,7 @@ using pfn_CreateCommandList1 = HRESULT (WINAPI*)(ID3D12Device4*,
 
 pfn_CreateCommandList CreateCommandList = nullptr;
 pfn_CreateCommandList1 CreateCommandList1 = nullptr;
-};
+}
 
 // ============================================================================
 
