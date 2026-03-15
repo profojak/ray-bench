@@ -44,5 +44,8 @@
     <ClInclude Include="nvapi_ids.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="dxgi_vtables.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
