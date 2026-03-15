@@ -32,7 +32,11 @@ static HMODULE d3d12_module = nullptr;
 
 namespace Hooked_ID3D12GraphicsCommandList
 {
+bool is_hooked = true;
+
 bool LazyHook (void** ppCommandList);
+
+// ----------------------------------------------------------------------------
 
 void WINAPI BuildRaytracingAccelerationStructure (
     ID3D12GraphicsCommandList4* This,
@@ -52,7 +56,11 @@ void WINAPI BuildRaytracingAccelerationStructure (
 
 namespace Hooked_ID3D12Device
 {
+bool is_hooked = true;
+
 bool LazyHook (void** ppDevice);
+
+// ----------------------------------------------------------------------------
 
 HRESULT WINAPI CreateCommandList (ID3D12Device* This,
                                   UINT nodeMask,
@@ -67,7 +75,7 @@ HRESULT WINAPI CreateCommandList (ID3D12Device* This,
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandList'");
 
-    if (SUCCEEDED (hr))
+    if (Hooked_ID3D12GraphicsCommandList::is_hooked == false && SUCCEEDED (hr))
     {
         Hooked_ID3D12GraphicsCommandList::LazyHook (ppCommandList);
     }
@@ -90,7 +98,7 @@ HRESULT WINAPI CreateCommandList1 (ID3D12Device4* This,
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandList1'");
 
-    if (SUCCEEDED (hr))
+    if (Hooked_ID3D12GraphicsCommandList::is_hooked == false && SUCCEEDED (hr))
     {
         Hooked_ID3D12GraphicsCommandList::LazyHook (ppCommandList);
     }
@@ -120,7 +128,7 @@ HRESULT WINAPI Hooked_D3D12CreateDevice (IUnknown* pAdapter, D3D_FEATURE_LEVEL M
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'D3D12CreateDevice'");
 
-    if (SUCCEEDED (hr))
+    if (Hooked_ID3D12Device::is_hooked == false && SUCCEEDED (hr))
     {
         Hooked_ID3D12Device::LazyHook (ppDevice);
     }

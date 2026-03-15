@@ -33,17 +33,18 @@ namespace raybench::hook
 /// @return True if successful, false otherwise
 bool Hooked_ID3D12GraphicsCommandList::LazyHook (void** ppCommandList)
 {
-    static bool is_hooked = false;
+    extern bool is_hooked;
 
-    if (is_hooked == false && ppCommandList != nullptr && *ppCommandList != nullptr)
+    if (ppCommandList != nullptr && *ppCommandList != nullptr)
     {
+        ID3D12GraphicsCommandList4* command_list4 = nullptr;
+        if (FAILED (reinterpret_cast<ID3D12GraphicsCommandList*>(*ppCommandList)->QueryInterface (IID_PPV_ARGS (&command_list4))))
+        {
+            return false;
+        }
+
         if (Original_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure == nullptr)
         {
-            ID3D12GraphicsCommandList4* command_list4 = nullptr;
-            if (FAILED (reinterpret_cast<ID3D12GraphicsCommandList*>(*ppCommandList)->QueryInterface (IID_PPV_ARGS (&command_list4))))
-            {
-                return false;
-            }
             void** vtable = *reinterpret_cast<void***> (command_list4);
             Original_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure =
                 reinterpret_cast<Original_ID3D12GraphicsCommandList::pfn_BuildRaytracingAccelerationStructure> (
@@ -67,13 +68,14 @@ bool Hooked_ID3D12GraphicsCommandList::LazyHook (void** ppCommandList)
 /// @return True if successful, false otherwise
 bool Hooked_ID3D12Device::LazyHook (void** ppDevice)
 {
-    static bool is_hooked = false;
+    extern bool is_hooked;
 
-    if (is_hooked == false && ppDevice != nullptr && *ppDevice != nullptr)
+    if (ppDevice != nullptr && *ppDevice != nullptr)
     {
+        ID3D12Device* device = reinterpret_cast<ID3D12Device*>(*ppDevice);
+
         if (Original_ID3D12Device::CreateCommandList == nullptr)
         {
-            ID3D12Device* device = reinterpret_cast<ID3D12Device*>(*ppDevice);
             void** vtable = *reinterpret_cast<void***> (device);
 
             Original_ID3D12Device::CreateCommandList = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList> (
@@ -83,13 +85,14 @@ bool Hooked_ID3D12Device::LazyHook (void** ppDevice)
                       "ID3D12Device::CreateCommandList"sv);
         }
 
+        ID3D12Device4* device4 = nullptr;
+        if (FAILED (reinterpret_cast<ID3D12Device*>(*ppDevice)->QueryInterface (IID_PPV_ARGS (&device4))))
+        {
+            return false;
+        }
+
         if (Original_ID3D12Device::CreateCommandList1 == nullptr)
         {
-            ID3D12Device4* device4 = nullptr;
-            if (FAILED (reinterpret_cast<ID3D12Device*>(*ppDevice)->QueryInterface (IID_PPV_ARGS (&device4))))
-            {
-                return false;
-            }
             void** vtable = *reinterpret_cast<void***> (device4);
 
             Original_ID3D12Device::CreateCommandList1 = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandList1> (
@@ -101,7 +104,6 @@ bool Hooked_ID3D12Device::LazyHook (void** ppDevice)
 
         is_hooked = true;
     }
-
     return true;
 }
 
