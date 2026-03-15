@@ -7,8 +7,8 @@ module;
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
+#include <dxgi1_6.h>
 #include <dxgi.h>
-#include <dxgi1_2.h>
 
 #include "util/log.h"
 
@@ -31,14 +31,96 @@ static HMODULE dxgi_module = nullptr;
 
 // ============================================================================
 
+namespace Hooked_IDXGIFactory
+{
+bool is_hooked = false;
+
+bool LazyHook (void** ppFactory);
+
+// ----------------------------------------------------------------------------
+
+HRESULT WINAPI CreateSwapChain (IDXGIFactory* This,
+                                IUnknown* pDevice,
+                                DXGI_SWAP_CHAIN_DESC* pDesc,
+                                IDXGISwapChain** ppSwapChain)
+{
+    HRESULT hr = Original_IDXGIFactory::CreateSwapChain (This, pDevice, pDesc, ppSwapChain);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGIFactory::CreateSwapChain'");
+
+    return hr;
+}
+
+// ----------------------------------------------------------------------------
+
+HRESULT WINAPI CreateSwapChainForHwnd (IDXGIFactory2* This,
+                                       IUnknown* pDevice,
+                                       HWND hWnd,
+                                       const DXGI_SWAP_CHAIN_DESC1* pDesc,
+                                       const DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pFullscreenDesc,
+                                       IDXGIOutput* pRestrictToOutput,
+                                       IDXGISwapChain1** ppSwapChain)
+{
+    HRESULT hr = Original_IDXGIFactory::CreateSwapChainForHwnd (This, pDevice, hWnd, pDesc, pFullscreenDesc,
+                                                                pRestrictToOutput, ppSwapChain);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGIFactory::CreateSwapChainForHwnd'");
+
+    return hr;
+}
+
+// ----------------------------------------------------------------------------
+
+HRESULT WINAPI CreateSwapChainForCoreWindow (IDXGIFactory2* This,
+                                             IUnknown* pDevice,
+                                             IUnknown* pWindow,
+                                             const DXGI_SWAP_CHAIN_DESC1* pDesc,
+                                             IDXGIOutput* pRestrictToOutput,
+                                             IDXGISwapChain1** ppSwapChain)
+{
+    HRESULT hr = Original_IDXGIFactory::CreateSwapChainForCoreWindow (This, pDevice, pWindow, pDesc,
+                                                                      pRestrictToOutput, ppSwapChain);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGIFactory::CreateSwapChainForCoreWindow'");
+
+    return hr;
+}
+
+// ----------------------------------------------------------------------------
+
+HRESULT WINAPI CreateSwapChainForComposition (IDXGIFactory2* This,
+                                              IUnknown* pDevice,
+                                              const DXGI_SWAP_CHAIN_DESC1* pDesc,
+                                              IDXGIOutput* pRestrictToOutput,
+                                              IDXGISwapChain1** ppSwapChain)
+{
+    HRESULT hr = Original_IDXGIFactory::CreateSwapChainForComposition (This, pDevice, pDesc, pRestrictToOutput,
+                                                                       ppSwapChain);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGIFactory::CreateSwapChainForComposition'");
+
+    return hr;
+}
+
+}
+
+// ============================================================================
+
 HRESULT WINAPI Hooked_CreateDXGIFactory (REFIID riid, void** ppFactory)
 {
     HRESULT hr = Original_CreateDXGIFactory (riid, ppFactory);
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'CreateDXGIFactory'");
 
+    if (Hooked_IDXGIFactory::is_hooked == false && SUCCEEDED (hr))
+    {
+        Hooked_IDXGIFactory::LazyHook (ppFactory);
+    }
+
     return hr;
 }
+
+// ----------------------------------------------------------------------------
 
 HRESULT WINAPI Hooked_CreateDXGIFactory1 (REFIID riid, void** ppFactory)
 {
@@ -46,14 +128,26 @@ HRESULT WINAPI Hooked_CreateDXGIFactory1 (REFIID riid, void** ppFactory)
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'CreateDXGIFactory1'");
 
+    if (Hooked_IDXGIFactory::is_hooked == false && SUCCEEDED (hr))
+    {
+        Hooked_IDXGIFactory::LazyHook (ppFactory);
+    }
+
     return hr;
 }
+
+// ----------------------------------------------------------------------------
 
 HRESULT WINAPI Hooked_CreateDXGIFactory2 (UINT Flags, REFIID riid, void** ppFactory)
 {
     HRESULT hr = Original_CreateDXGIFactory2 (Flags, riid, ppFactory);
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'CreateDXGIFactory2'");
+
+    if (Hooked_IDXGIFactory::is_hooked == false && SUCCEEDED (hr))
+    {
+        Hooked_IDXGIFactory::LazyHook (ppFactory);
+    }
 
     return hr;
 }
