@@ -28,6 +28,46 @@ using raybench::util::UnhookWrap;
 namespace raybench::hook
 {
 
+/// @brief Hook `IDXGISwapChain` API calls
+///
+/// @param ppSwapChain `IDXGISwapChain`
+/// @return True if successful, false otherwise
+bool Hooked_IDXGISwapChain::LazyHook (void** ppSwapChain)
+{
+    extern bool is_hooked;
+
+    if (ppSwapChain != nullptr && *ppSwapChain != nullptr)
+    {
+        IDXGISwapChain* swap_chain = reinterpret_cast<IDXGISwapChain*>(*ppSwapChain);
+
+        if (Original_IDXGISwapChain::Present == nullptr)
+        {
+            void** vtable = *reinterpret_cast<void***> (swap_chain);
+            Original_IDXGISwapChain::Present = reinterpret_cast<Original_IDXGISwapChain::pfn_Present> (
+                vtable[static_cast<int>(IDXGISwapChain_VTable_ID::Present)]);
+            HookWrap (Original_IDXGISwapChain::Present, Present, "IDXGISwapChain::Present"sv);
+        }
+
+        IDXGISwapChain1* swap_chain1 = nullptr;
+        if (FAILED (reinterpret_cast<IDXGISwapChain*>(*ppSwapChain)->QueryInterface (IID_PPV_ARGS (&swap_chain1))))
+        {
+            return false;
+        }
+
+        if (Original_IDXGISwapChain::Present1 == nullptr)
+        {
+            void** vtable = *reinterpret_cast<void***> (swap_chain1);
+            Original_IDXGISwapChain::Present1 = reinterpret_cast<Original_IDXGISwapChain::pfn_Present1> (
+                vtable[static_cast<int>(IDXGISwapChain1_VTable_ID::Present1)]);
+            HookWrap (Original_IDXGISwapChain::Present1, Present1, "IDXGISwapChain::Present1"sv);
+        }
+        is_hooked = true;
+    }
+    return true;
+}
+
+// ----------------------------------------------------------------------------
+
 /// @brief Hook `IDXGIFactory` API calls
 ///
 /// @param ppFactory `IDXGIFactory`

@@ -31,6 +31,41 @@ static HMODULE dxgi_module = nullptr;
 
 // ============================================================================
 
+namespace Hooked_IDXGISwapChain
+{
+bool is_hooked = false;
+
+bool LazyHook (void** ppSwapChain);
+
+// ----------------------------------------------------------------------------
+
+HRESULT WINAPI Present (IDXGISwapChain* This, UINT SyncInterval, UINT Flags)
+{
+    HRESULT hr = Original_IDXGISwapChain::Present (This, SyncInterval, Flags);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGISwapChain::Present'");
+
+    return hr;
+}
+
+// ----------------------------------------------------------------------------
+
+HRESULT WINAPI Present1 (IDXGISwapChain1* This,
+                         UINT SyncInterval,
+                         UINT PresentFlags,
+                         const DXGI_PRESENT_PARAMETERS* pPresentParameters)
+{
+    HRESULT hr = Original_IDXGISwapChain::Present1 (This, SyncInterval, PresentFlags, pPresentParameters);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGISwapChain::Present1'");
+
+    return hr;
+}
+
+}
+
+// ============================================================================
+
 namespace Hooked_IDXGIFactory
 {
 bool is_hooked = false;
@@ -47,6 +82,11 @@ HRESULT WINAPI CreateSwapChain (IDXGIFactory* This,
     HRESULT hr = Original_IDXGIFactory::CreateSwapChain (This, pDevice, pDesc, ppSwapChain);
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGIFactory::CreateSwapChain'");
+
+    if (Hooked_IDXGISwapChain::is_hooked == false && SUCCEEDED (hr))
+    {
+        Hooked_IDXGISwapChain::LazyHook (reinterpret_cast<void**> (ppSwapChain));
+    }
 
     return hr;
 }
@@ -66,6 +106,11 @@ HRESULT WINAPI CreateSwapChainForHwnd (IDXGIFactory2* This,
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGIFactory::CreateSwapChainForHwnd'");
 
+    if (Hooked_IDXGISwapChain::is_hooked == false && SUCCEEDED (hr))
+    {
+        Hooked_IDXGISwapChain::LazyHook (reinterpret_cast<void**> (ppSwapChain));
+    }
+
     return hr;
 }
 
@@ -83,6 +128,11 @@ HRESULT WINAPI CreateSwapChainForCoreWindow (IDXGIFactory2* This,
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGIFactory::CreateSwapChainForCoreWindow'");
 
+    if (Hooked_IDXGISwapChain::is_hooked == false && SUCCEEDED (hr))
+    {
+        Hooked_IDXGISwapChain::LazyHook (reinterpret_cast<void**> (ppSwapChain));
+    }
+
     return hr;
 }
 
@@ -98,6 +148,11 @@ HRESULT WINAPI CreateSwapChainForComposition (IDXGIFactory2* This,
                                                                        ppSwapChain);
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGIFactory::CreateSwapChainForComposition'");
+
+    if (Hooked_IDXGISwapChain::is_hooked == false && SUCCEEDED (hr))
+    {
+        Hooked_IDXGISwapChain::LazyHook (reinterpret_cast<void**> (ppSwapChain));
+    }
 
     return hr;
 }

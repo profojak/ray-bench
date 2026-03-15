@@ -15,6 +15,19 @@ export module RayBench.Hook:DXGI.Pfn;
 namespace raybench::hook
 {
 
+// ============================================================================
+
+namespace Original_IDXGISwapChain
+{
+using pfn_Present = HRESULT (WINAPI*) (IDXGISwapChain*, UINT, UINT);
+using pfn_Present1 = HRESULT (WINAPI*) (IDXGISwapChain1*, UINT, UINT, const DXGI_PRESENT_PARAMETERS*);
+
+pfn_Present Present = nullptr;
+pfn_Present1 Present1 = nullptr;
+};
+
+// ============================================================================
+
 namespace Original_IDXGIFactory
 {
 using pfn_CreateSwapChain = HRESULT (WINAPI*) (IDXGIFactory*,
