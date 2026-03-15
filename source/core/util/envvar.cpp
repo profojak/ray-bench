@@ -58,10 +58,6 @@ export [[nodiscard]] std::optional<std::string> Get (std::string_view name) noex
         {
             RAYBENCH_LOG_ERROR ("Failed to get environment variable '{}': {}", name, error);
         }
-        else
-        {
-            RAYBENCH_LOG_DEBUG ("Not found environment variable '{}'", name);
-        }
     }
     else if (result >= buffer.size ())
     {
