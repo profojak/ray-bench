@@ -8,6 +8,7 @@ export import :Arg;
 export import :Detours;
 export import :EnvVar;
 export import :Inject;
+export import :Input;
 export import :Log;
 export import :String;
 
