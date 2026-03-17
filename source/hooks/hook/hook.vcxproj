@@ -126,6 +126,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\core\capture\capture.vcxproj">
+      <Project>{89268611-666b-412a-acd0-a11e4c2abb2f}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\core\util\util.vcxproj">
       <Project>{3f538997-485d-48a5-a684-2c557dac9a70}</Project>
     </ProjectReference>

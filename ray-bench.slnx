@@ -4,6 +4,7 @@
     <Platform Name="x64" />
   </Configurations>
   <Folder Name="/Core/">
+    <Project Path="source/core/capture/capture.vcxproj" Id="89268611-666b-412a-acd0-a11e4c2abb2f" />
     <Project Path="source/core/util/util.vcxproj" Id="3f538997-485d-48a5-a684-2c557dac9a70" />
   </Folder>
   <Folder Name="/Hooks/">

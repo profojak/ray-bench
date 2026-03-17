@@ -18,9 +18,11 @@ export module RayBench.Hook:DXGI.Hook;
 import :DXGI.Pfn;
 
 import std;
+import RayBench.Capture;
 import RayBench.Util;
 
 using namespace std::literals;
+auto& Manager = raybench::capture::Manager::GetManager;
 using raybench::util::HookWrap;
 using raybench::util::UnhookWrap;
 
@@ -38,9 +40,13 @@ RAYBENCH_LAZY_INIT;
 
 HRESULT WINAPI Present (IDXGISwapChain* This, UINT SyncInterval, UINT Flags)
 {
+    Manager ().PrePresent ();
+
     HRESULT hr = Original_IDXGISwapChain::Present (This, SyncInterval, Flags);
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGISwapChain::Present'");
+
+    Manager ().PostPresent (Flags);
 
     return hr;
 }
@@ -52,9 +58,13 @@ HRESULT WINAPI Present1 (IDXGISwapChain1* This,
                          UINT PresentFlags,
                          const DXGI_PRESENT_PARAMETERS* pPresentParameters)
 {
+    Manager ().PrePresent ();
+
     HRESULT hr = Original_IDXGISwapChain::Present1 (This, SyncInterval, PresentFlags, pPresentParameters);
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGISwapChain::Present1'");
+
+    Manager ().PostPresent (PresentFlags);
 
     return hr;
 }
