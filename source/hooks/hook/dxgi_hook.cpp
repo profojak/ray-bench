@@ -22,7 +22,7 @@ import RayBench.Capture;
 import RayBench.Util;
 
 using namespace std::literals;
-auto& Manager = raybench::capture::Manager::GetManager;
+using Manager = raybench::capture::Manager;
 using raybench::util::HookWrap;
 using raybench::util::UnhookWrap;
 
@@ -40,14 +40,25 @@ RAYBENCH_LAZY_INIT;
 
 HRESULT WINAPI Present (IDXGISwapChain* This, UINT SyncInterval, UINT Flags)
 {
-    Manager ().PrePresent ();
+    auto& manager = Manager::GetManager ();
 
-    HRESULT hr = Original_IDXGISwapChain::Present (This, SyncInterval, Flags);
+    uint32_t call_depth = manager.CallDepthIncrement ();
+    if (call_depth > 1)
+    {
+        HRESULT hr = Original_IDXGISwapChain::Present (This, SyncInterval, Flags);
+        manager.CallDepthDecrement ();
+        return hr;
+    }
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGISwapChain::Present'");
 
-    Manager ().PostPresent (Flags);
+    std::shared_lock<Manager::APIMutex> lock = Manager::GetSharedLock ();
 
+    manager.Pre_Present ();
+    HRESULT hr = Original_IDXGISwapChain::Present (This, SyncInterval, Flags);
+    manager.Post_Present (Flags, lock);
+
+    manager.CallDepthDecrement ();
     return hr;
 }
 
@@ -58,14 +69,25 @@ HRESULT WINAPI Present1 (IDXGISwapChain1* This,
                          UINT PresentFlags,
                          const DXGI_PRESENT_PARAMETERS* pPresentParameters)
 {
-    Manager ().PrePresent ();
+    auto& manager = Manager::GetManager ();
 
-    HRESULT hr = Original_IDXGISwapChain::Present1 (This, SyncInterval, PresentFlags, pPresentParameters);
+    uint32_t call_depth = manager.CallDepthIncrement ();
+    if (call_depth > 1)
+    {
+        HRESULT hr = Original_IDXGISwapChain::Present1 (This, SyncInterval, PresentFlags, pPresentParameters);
+        manager.CallDepthDecrement ();
+        return hr;
+    }
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGISwapChain::Present1'");
 
-    Manager ().PostPresent (PresentFlags);
+    std::shared_lock<Manager::APIMutex> lock = Manager::GetSharedLock ();
 
+    manager.Pre_Present ();
+    HRESULT hr = Original_IDXGISwapChain::Present1 (This, SyncInterval, PresentFlags, pPresentParameters);
+    manager.Post_Present (PresentFlags, lock);
+
+    manager.CallDepthDecrement ();
     return hr;
 }
 
