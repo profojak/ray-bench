@@ -54,9 +54,9 @@ HRESULT WINAPI Present (IDXGISwapChain* This, UINT SyncInterval, UINT Flags)
 
     std::shared_lock<Manager::APIMutex> lock = Manager::GetSharedLock ();
 
-    manager.Pre_Present ();
+    manager.Pre_IDXGISwapChain_Present ();
     HRESULT hr = Original_IDXGISwapChain::Present (This, SyncInterval, Flags);
-    manager.Post_Present (Flags, lock);
+    manager.Post_IDXGISwapChain_Present (Flags, lock);
 
     manager.CallDepthDecrement ();
     return hr;
@@ -83,9 +83,9 @@ HRESULT WINAPI Present1 (IDXGISwapChain1* This,
 
     std::shared_lock<Manager::APIMutex> lock = Manager::GetSharedLock ();
 
-    manager.Pre_Present ();
+    manager.Pre_IDXGISwapChain_Present ();
     HRESULT hr = Original_IDXGISwapChain::Present1 (This, SyncInterval, PresentFlags, pPresentParameters);
-    manager.Post_Present (PresentFlags, lock);
+    manager.Post_IDXGISwapChain_Present (PresentFlags, lock);
 
     manager.CallDepthDecrement ();
     return hr;

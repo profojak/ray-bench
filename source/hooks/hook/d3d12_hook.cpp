@@ -17,9 +17,11 @@ export module RayBench.Hook:D3D12.Hook;
 import :D3D12.Pfn;
 
 import std;
+import RayBench.Capture;
 import RayBench.Util;
 
 using namespace std::literals;
+using Manager = raybench::capture::Manager;
 using raybench::util::HookWrap;
 using raybench::util::UnhookWrap;
 
@@ -37,10 +39,22 @@ RAYBENCH_LAZY_INIT;
 
 D3D12_GPU_VIRTUAL_ADDRESS WINAPI GetGPUVirtualAddress (ID3D12Resource* This)
 {
+    auto& manager = Manager::GetManager ();
+
+    uint32_t call_depth = manager.CallDepthIncrement ();
+    if (call_depth > 1)
+    {
+        D3D12_GPU_VIRTUAL_ADDRESS result = Original_ID3D12Resource::GetGPUVirtualAddress (This);
+        manager.CallDepthDecrement ();
+        return result;
+    }
+
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Resource::GetGPUVirtualAddress'");
 
     D3D12_GPU_VIRTUAL_ADDRESS result = Original_ID3D12Resource::GetGPUVirtualAddress (This);
+    manager.Post_ID3D12Resource_GetGPUVirtualAddress (This, result);
 
+    manager.CallDepthDecrement ();
     return result;
 }
 
@@ -58,10 +72,24 @@ void WINAPI BuildRaytracingAccelerationStructure (
     UINT NumPostbuildInfoDescs,
     const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC* pPostbuildInfoDescs)
 {
-    Original_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure (This, pDesc, NumPostbuildInfoDescs,
-                                                                              pPostbuildInfoDescs);
+    auto& manager = Manager::GetManager ();
+
+    uint32_t call_depth = manager.CallDepthIncrement ();
+    if (call_depth > 1)
+    {
+        Original_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure (This, pDesc, NumPostbuildInfoDescs,
+                                                                                  pPostbuildInfoDescs);
+        manager.CallDepthDecrement ();
+        return;
+    }
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure'");
+
+    Original_ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure (This, pDesc, NumPostbuildInfoDescs,
+                                                                              pPostbuildInfoDescs);
+    manager.Post_ID3D12GraphicsCommandList_BuildRaytracingAccelerationStructure (This, pDesc);
+
+    manager.CallDepthDecrement ();
 }
 
 }

@@ -7,6 +7,7 @@ module;
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
+#include <d3d12.h>
 #include <dxgi1_6.h>
 #include <dxgi.h>
 
@@ -15,6 +16,7 @@ module;
 export module RayBench.Capture:Manager;
 
 import std;
+import :Tracker;
 import RayBench.Util;
 
 namespace raybench::capture
@@ -163,8 +165,19 @@ public:
 
     // ========================================================================
 
+    /// @brief `ID3D12Resource::GetGPUVirtualAddress` hook callback
+    void Post_ID3D12Resource_GetGPUVirtualAddress (ID3D12Resource*,
+                                                   D3D12_GPU_VIRTUAL_ADDRESS addr)
+    {
+        if (IsCaptureModeTrack () && (addr != 0))
+        {
+        }
+    }
+
+    // ========================================================================
+
     /// @brief `IDXGISwapChain::Present` hook callback
-    void Pre_Present ()
+    void Pre_IDXGISwapChain_Present ()
     {
         // TODO: Extract and store frame buffer.
     }
@@ -172,7 +185,7 @@ public:
     // ------------------------------------------------------------------------
 
     /// @brief `IDXGISwapChain::Present` hook callback
-    void Post_Present (UINT flags, std::shared_lock<APIMutex>& lock)
+    void Post_IDXGISwapChain_Present (UINT flags, std::shared_lock<APIMutex>& lock)
     {
         if (flags & DXGI_PRESENT_TEST)
         {
@@ -192,6 +205,20 @@ public:
         }
     }
 
+    // ========================================================================
+
+    /// @brief `ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure` hook callback
+    void Post_ID3D12GraphicsCommandList_BuildRaytracingAccelerationStructure (
+        ID3D12GraphicsCommandList4* command_list,
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC* desc
+    )
+    {
+        if (IsCaptureModeTrack ())
+        {
+            tracker_.BuildRaytracingAccelerationStructure (command_list, desc);
+        }
+    }
+
 private:
 
     // ========================================================================
@@ -202,6 +229,8 @@ private:
     ///  re-entrant capture
     static thread_local uint32_t api_call_depth_;
 
+    ///< Capture tracker
+    Tracker tracker_;
     ///< Current capture mode
     CaptureMode capture_mode_ = CaptureModeFlags::track;
     ///< Key code to trigger frame capture
