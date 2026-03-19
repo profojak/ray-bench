@@ -27,6 +27,66 @@ using raybench::util::UnhookWrap;
 namespace raybench::hook
 {
 
+/// @brief Hook `ID3D12Resource` API calls
+///
+/// @param ppDevice `ID3D12Device`
+/// @return True if successful, false otherwise
+bool Hooked_ID3D12Resource::LazyHook (void** ppDevice)
+{
+    if (ppDevice != nullptr && *ppDevice != nullptr)
+    {
+        ID3D12Resource* resource = nullptr;
+        ID3D12Device* device = reinterpret_cast<ID3D12Device*>(*ppDevice);
+
+        D3D12_HEAP_PROPERTIES heap_properties = {};
+        heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+        D3D12_RESOURCE_DESC resource_desc = {};
+        resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        resource_desc.Width = 1;
+        resource_desc.Height = 1;
+        resource_desc.DepthOrArraySize = 1;
+        resource_desc.MipLevels = 1;
+        resource_desc.Format = DXGI_FORMAT_UNKNOWN;
+        resource_desc.SampleDesc.Count = 1;
+        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+        HRESULT hr = device->CreateCommittedResource (&heap_properties,
+                                                      D3D12_HEAP_FLAG_NONE,
+                                                      &resource_desc,
+                                                      D3D12_RESOURCE_STATE_COMMON,
+                                                      nullptr,
+                                                      IID_PPV_ARGS (&resource));
+        if (FAILED (hr))
+        {
+            return false;
+        }
+
+        if (Original_ID3D12Resource::GetGPUVirtualAddress == nullptr)
+        {
+            void** vtable = *reinterpret_cast<void***> (resource);
+            Original_ID3D12Resource::GetGPUVirtualAddress = reinterpret_cast<Original_ID3D12Resource::pfn_GetGPUVirtualAddress> (
+                vtable[static_cast<int>(ID3D12Resource_VTable_ID::GetGPUVirtualAddress)]);
+
+            bool result = HookWrap (Original_ID3D12Resource::GetGPUVirtualAddress, GetGPUVirtualAddress,
+                                    "ID3D12Resource::GetGPUVirtualAddress"sv);
+            resource->Release ();
+            if (result == false)
+            {
+                return false;
+            }
+        }
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
+// ----------------------------------------------------------------------------
+
 /// @brief Hook `ID3D12GraphicsCommandList` API calls
 ///
 /// @param ppCommandList `ID3D12GraphicsCommandList`

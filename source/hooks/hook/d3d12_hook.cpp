@@ -31,6 +31,23 @@ static HMODULE d3d12_module = nullptr;
 
 // ============================================================================
 
+namespace Hooked_ID3D12Resource
+{
+RAYBENCH_LAZY_INIT;
+
+D3D12_GPU_VIRTUAL_ADDRESS WINAPI GetGPUVirtualAddress (ID3D12Resource* This)
+{
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Resource::GetGPUVirtualAddress'");
+
+    D3D12_GPU_VIRTUAL_ADDRESS result = Original_ID3D12Resource::GetGPUVirtualAddress (This);
+
+    return result;
+}
+
+}
+
+// ============================================================================
+
 namespace Hooked_ID3D12GraphicsCommandList
 {
 RAYBENCH_LAZY_INIT;
@@ -116,6 +133,7 @@ HRESULT WINAPI Hooked_D3D12CreateDevice (IUnknown* pAdapter, D3D_FEATURE_LEVEL M
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'D3D12CreateDevice'");
 
     RAYBENCH_LAZY_HOOK (SUCCEEDED (hr), Hooked_ID3D12Device, ppDevice);
+    RAYBENCH_LAZY_HOOK (SUCCEEDED (hr), Hooked_ID3D12Resource, ppDevice);
 
     return hr;
 }

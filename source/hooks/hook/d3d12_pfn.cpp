@@ -16,6 +16,15 @@ namespace raybench::hook
 
 // ============================================================================
 
+namespace Original_ID3D12Resource
+{
+using pfn_GetGPUVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS (WINAPI*)(ID3D12Resource*);
+
+pfn_GetGPUVirtualAddress GetGPUVirtualAddress = nullptr;
+}
+
+// ============================================================================
+
 namespace Original_ID3D12GraphicsCommandList
 {
 using pfn_BuildRaytracingAccelerationStructure = void (WINAPI*) (
