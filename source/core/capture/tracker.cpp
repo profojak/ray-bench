@@ -27,6 +27,12 @@ export class Tracker
 {
 public:
 
+    void GetGPUVirtualAddress (ID3D12Resource* resource, D3D12_GPU_VIRTUAL_ADDRESS addr)
+    {
+        std::scoped_lock<std::mutex> lock (state_mutex_);
+        state_.AddVirtualAddress (resource, addr);
+    }
+
     // ========================================================================
 
     void BuildRaytracingAccelerationStructure (
@@ -34,7 +40,7 @@ public:
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC* desc
     )
     {
-        D3D12_GPU_VIRTUAL_ADDRESS dest_addr = 0;
+        ID3D12Resource* resource = nullptr;
         ID3D12Device5* device = nullptr;
         HRESULT hr = command_list->GetDevice (IID_PPV_ARGS (&device));
         if (FAILED (hr))
@@ -48,12 +54,11 @@ public:
 
         {
             std::scoped_lock<std::mutex> lock (state_mutex_);
-            // TODO
-        }
-
-        if (dest_addr == 0)
-        {
-            return;
+            bool result = state_.GetVirtualAddress (resource, desc->DestAccelerationStructureData, prebuild_info.ResultDataMaxSizeInBytes);
+            if (result == false)
+            {
+                return;
+            }
         }
     }
 
