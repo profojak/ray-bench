@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="capture.ixx">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -26,6 +23,9 @@
     </ClCompile>
     <ClCompile Include="tracker.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="capture.ixx">
+      <Filter>Header Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -10,6 +10,7 @@ export import :EnvVar;
 export import :Inject;
 export import :Input;
 export import :Log;
+export import :Platform;
 export import :String;
 
 // ----------------------------------------------------------------------------

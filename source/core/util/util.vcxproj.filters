@@ -39,6 +39,9 @@
     <ClCompile Include="input.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="platform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="log.h">
