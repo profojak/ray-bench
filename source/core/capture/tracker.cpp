@@ -193,7 +193,7 @@ public:
         resource_desc.SampleDesc.Count = 1;
         resource_desc.SampleDesc.Quality = 0;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-        resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
         hr = device->CreateCommittedResource (&heap_properties,
                                               D3D12_HEAP_FLAG_NONE,
@@ -210,6 +210,73 @@ public:
 
         // Stage build inputs copies to copyback buffer to be executed during
         // command list execution
+        auto entry_it = inputs_entries.begin ();
+        while (entry_it != inputs_entries.end ())
+        {
+            ID3D12Resource* src_resource = nullptr;
+            {
+                std::scoped_lock<std::mutex> lock (state_mutex_);
+                bool result = virtual_map_.GetVirtualAddress (src_resource, *entry_it->dest_addr, entry_it->size);
+                if (result == false)
+                {
+                    RAYBENCH_LOG_ERROR ("Failed to retrieve GPU virtual address for build input resource!");
+                    ++entry_it;
+                    continue;
+                }
+            }
+
+            D3D12_RESOURCE_TRANSITION_BARRIER pre_transition_barrier {};
+            pre_transition_barrier.pResource = src_resource;
+            pre_transition_barrier.Subresource = 0;
+            // TODO: Must determine correct resource state before transition!
+            // For now, assume resources are in non-pixel shader resource state
+            pre_transition_barrier.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            pre_transition_barrier.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+
+            D3D12_RESOURCE_BARRIER pre_resource_barrier {};
+            pre_resource_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            pre_resource_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+            pre_resource_barrier.Transition = pre_transition_barrier;
+
+            command_list->ResourceBarrier (1, &pre_resource_barrier);
+
+            while (entry_it != inputs_entries.end ())
+            {
+                ID3D12Resource* dummy_resource = nullptr;
+                {
+                    std::scoped_lock<std::mutex> lock (state_mutex_);
+                    bool result = virtual_map_.GetVirtualAddress (dummy_resource, *entry_it->dest_addr, entry_it->size);
+                    if (result == false)
+                    {
+                        break;
+                    }
+                    else if (dummy_resource != src_resource)
+                    {
+                        break;
+                    }
+                }
+
+                auto dest_addr = *entry_it->dest_addr;
+                auto dest_offset = entry_it->offset;
+                auto dest_size = entry_it->size;
+                auto src_offset = dest_addr - src_resource->GetGPUVirtualAddress ();
+                command_list->CopyBufferRegion (copyback_resource, dest_offset, src_resource, src_offset, dest_size);
+                ++entry_it;
+            }
+
+            D3D12_RESOURCE_TRANSITION_BARRIER post_transition_barrier {};
+            post_transition_barrier.pResource = src_resource;
+            post_transition_barrier.Subresource = 0;
+            post_transition_barrier.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+            post_transition_barrier.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+
+            D3D12_RESOURCE_BARRIER post_resource_barrier {};
+            post_resource_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            post_resource_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+            post_resource_barrier.Transition = post_transition_barrier;
+
+            command_list->ResourceBarrier (1, &post_resource_barrier);
+        }
     }
 
 private:
