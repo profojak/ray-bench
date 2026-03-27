@@ -91,7 +91,7 @@ public:
         {
             for (UINT i = 0; i < as_build.inputs.NumDescs; ++i)
             {
-                const D3D12_RAYTRACING_GEOMETRY_DESC geometry_desc = as_build.geometry_descs[i];
+                const D3D12_RAYTRACING_GEOMETRY_DESC& geometry_desc = as_build.geometry_descs[i];
                 if (geometry_desc.Type == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
                 {
                     const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC& triangles_desc = geometry_desc.Triangles;
@@ -170,7 +170,7 @@ public:
         // optimize retrieval during command list execution
         std::sort (inputs_entries.begin (), inputs_entries.end (), [] (const ASMap::InputsEntry& a, const ASMap::InputsEntry& b)
                    {
-                       return a.dest_addr < b.dest_addr;
+                       return *a.dest_addr < *b.dest_addr;
                    });
 
         ID3D12Resource* copyback_resource = nullptr;
