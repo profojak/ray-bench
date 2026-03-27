@@ -49,6 +49,7 @@ public:
             return;
         }
 
+        // Retrieve destination resource from GPU virtual address
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info = {};
         device->GetRaytracingAccelerationStructurePrebuildInfo (&desc->Inputs, &prebuild_info);
 
@@ -61,7 +62,8 @@ public:
             }
         }
 
-        // Store acceleration structure build information for later retrieval during capture
+        // Store acceleration structure build information for later retrieval
+        // during command list execution
         ASMap::Build as_build {};
         as_build.dest_addr = desc->DestAccelerationStructureData;
         as_build.dest_size = prebuild_info.ResultDataMaxSizeInBytes;
@@ -81,7 +83,7 @@ public:
             as_build.inputs.ppGeometryDescs = nullptr;
         }
 
-        // Store build inputs for later retrieval during capture
+        // Store build inputs for later retrieval during command list execution
         UINT64 inputs_size = 0;
         std::vector<ASMap::InputsEntry> inputs_entries;
 
@@ -139,7 +141,12 @@ public:
         }
         else if (desc->Inputs.Type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
         {
-            if (desc->Inputs.NumDescs > 0)
+            if (desc->Inputs.DescsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS)
+            {
+                RAYBENCH_LOG_WARNING_ONCE ("TLAS with array of pointers is not yet supported!");
+                return;
+            }
+            else if (desc->Inputs.NumDescs > 0)
             {
                 inputs_size = desc->Inputs.NumDescs * sizeof (D3D12_RAYTRACING_INSTANCE_DESC);
                 inputs_entries.emplace_back (ASMap::InputsEntry {&desc->Inputs.InstanceDescs, inputs_size, 0});
@@ -158,7 +165,9 @@ public:
 
         as_build.copyback_size = inputs_size;
 
-        // Create copyback buffer for build inputs to be retrieved during capture
+        // Create copyback buffer for build inputs to be retrieved during
+        // command list execution.  Sort entries by destination address to
+        // optimize retrieval during command list execution
         std::sort (inputs_entries.begin (), inputs_entries.end (), [] (const ASMap::InputsEntry& a, const ASMap::InputsEntry& b)
                    {
                        return a.dest_addr < b.dest_addr;
@@ -198,6 +207,9 @@ public:
             return;
         }
         as_build.copyback_resource = copyback_resource;
+
+        // Stage build inputs copies to copyback buffer to be executed during
+        // command list execution
     }
 
 private:
