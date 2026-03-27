@@ -165,6 +165,9 @@ public:
 
         as_build.copyback_size = inputs_size;
 
+        // TODO: Must implement resource state tracking!
+
+        /*
         // Create copyback buffer for build inputs to be retrieved during
         // command list execution.  Sort entries by destination address to
         // optimize retrieval during command list execution
@@ -277,6 +280,7 @@ public:
 
             command_list->ResourceBarrier (1, &post_resource_barrier);
         }
+        */
     }
 
 private:
