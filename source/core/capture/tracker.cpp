@@ -30,7 +30,11 @@ public:
     void GetGPUVirtualAddress (ID3D12Resource* resource, D3D12_GPU_VIRTUAL_ADDRESS addr)
     {
         std::scoped_lock<std::mutex> lock (state_mutex_);
-        virtual_map_.AddVirtualAddress (resource, addr);
+        ResourceMap::ResourceInfo resource_info {
+            .resource = resource,
+            .end_addr = addr + resource->GetDesc ().Width,
+        };
+        resource_map_.AddResource (resource_info, addr);
     }
 
     // ========================================================================
@@ -40,7 +44,7 @@ public:
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC* desc
     )
     {
-        ID3D12Resource* resource = nullptr;
+        std::optional<ResourceMap::ResourceInfo> resource_info_opt;
         ID3D12Device5* device = nullptr;
         HRESULT hr = command_list->GetDevice (IID_PPV_ARGS (&device));
         if (FAILED (hr))
@@ -55,20 +59,22 @@ public:
 
         {
             std::scoped_lock<std::mutex> lock (state_mutex_);
-            bool result = virtual_map_.GetVirtualAddress (resource, desc->DestAccelerationStructureData, prebuild_info.ResultDataMaxSizeInBytes);
-            if (result == false)
-            {
-                return;
-            }
+            resource_info_opt = resource_map_.GetResource (desc->DestAccelerationStructureData, prebuild_info.ResultDataMaxSizeInBytes);
+        }
+
+        if (resource_info_opt.has_value () == false)
+        {
+            return;
         }
 
         // Store acceleration structure build information for later retrieval
         // during command list execution
-        ASMap::Build as_build {};
-        as_build.dest_addr = desc->DestAccelerationStructureData;
-        as_build.dest_size = prebuild_info.ResultDataMaxSizeInBytes;
-        as_build.dest_resource = resource;
-        as_build.inputs = desc->Inputs;
+        ASMap::BuildInfo as_build {
+            .dest_addr = desc->DestAccelerationStructureData,
+            .dest_size = prebuild_info.ResultDataMaxSizeInBytes,
+            .dest_resource = resource_info_opt->resource,
+            .inputs = desc->Inputs
+        };
 
         if (desc->Inputs.Type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
         {
@@ -85,7 +91,7 @@ public:
 
         // Store build inputs for later retrieval during command list execution
         UINT64 inputs_size = 0;
-        std::vector<ASMap::InputsEntry> inputs_entries;
+        std::vector<ASMap::BuildInput> inputs_entries;
 
         if (as_build.inputs.Type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
         {
@@ -101,7 +107,7 @@ public:
                     {
                         constexpr UINT64 transform_size = 12 * sizeof (float);
                         inputs_size = raybench::util::AlignValue<D3D12_RAYTRACING_TRANSFORM3X4_BYTE_ALIGNMENT> (inputs_size);
-                        inputs_entries.emplace_back (ASMap::InputsEntry {&triangles_desc.Transform3x4, transform_size, inputs_size});
+                        inputs_entries.emplace_back (ASMap::BuildInput {&triangles_desc.Transform3x4, transform_size, inputs_size});
                         inputs_size += transform_size;
                     }
 
@@ -124,7 +130,7 @@ public:
                                 break;
                         }
                         const UINT index_buffer_size = triangles_desc.IndexCount * index_size;
-                        inputs_entries.emplace_back (ASMap::InputsEntry {&triangles_desc.IndexBuffer, index_buffer_size, inputs_size});
+                        inputs_entries.emplace_back (ASMap::BuildInput {&triangles_desc.IndexBuffer, index_buffer_size, inputs_size});
                         inputs_size += index_buffer_size;
                     }
 
@@ -133,7 +139,7 @@ public:
                     {
                         UINT64 vertex_size = triangles_desc.VertexCount * triangles_desc.VertexBuffer.StrideInBytes;
                         inputs_size = raybench::util::AlignValue<4> (inputs_size);
-                        inputs_entries.emplace_back (ASMap::InputsEntry {&triangles_desc.VertexBuffer.StartAddress, vertex_size, inputs_size});
+                        inputs_entries.emplace_back (ASMap::BuildInput {&triangles_desc.VertexBuffer.StartAddress, vertex_size, inputs_size});
                         inputs_size += vertex_size;
                     }
                 }
@@ -149,7 +155,7 @@ public:
             else if (desc->Inputs.NumDescs > 0)
             {
                 inputs_size = desc->Inputs.NumDescs * sizeof (D3D12_RAYTRACING_INSTANCE_DESC);
-                inputs_entries.emplace_back (ASMap::InputsEntry {&desc->Inputs.InstanceDescs, inputs_size, 0});
+                inputs_entries.emplace_back (ASMap::BuildInput {&desc->Inputs.InstanceDescs, inputs_size, 0});
             }
         }
         else
@@ -287,8 +293,8 @@ private:
 
     // ========================================================================
 
-    ///< Map of GPU virtual addresses
-    VirtualMap virtual_map_;
+    ///< Map of resources
+    ResourceMap resource_map_;
     ///< Mutex for synchronizing access to the capture state
     std::mutex state_mutex_;
 };
