@@ -31,8 +31,8 @@ public:
         ID3D12Resource* resource {nullptr};
         ///< GPU virtual address of the end of resource address range
         D3D12_GPU_VIRTUAL_ADDRESS end_addr {0};
-        ///< Resource state
-        D3D12_RESOURCE_STATES state {D3D12_RESOURCE_STATE_COMMON};
+        ///< Resource transition state barrier
+        D3D12_RESOURCE_TRANSITION_BARRIER barrier {};
     };
 
     // ========================================================================
@@ -80,9 +80,26 @@ public:
             }
         }
 
-        RAYBENCH_LOG_WARNING ("Failed to find resource for GPU virtual address 0x{:016X} with minimum size {}!",
-                              addr, minimum_size);
         return std::nullopt;
+    }
+
+    // ------------------------------------------------------------------------
+
+    /// @brief Update the resource information for a given resource in the map
+    ///
+    /// @param resource_info Resource information to update
+    void UpdateResource (ResourceInfo resource_info)
+    {
+        for (auto it = virtual_map_.lower_bound(resource_info.resource->GetGPUVirtualAddress()); it != virtual_map_.end(); ++it)
+        {
+            auto& aliased_resources = it->second;
+            auto resource_it = aliased_resources.find(resource_info.resource);
+            if (resource_it != aliased_resources.end())
+            {
+                resource_it->second = resource_info;
+                return;
+            }
+        }
     }
 
 private:

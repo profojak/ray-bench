@@ -39,6 +39,40 @@ public:
 
     // ========================================================================
 
+    void ResourceBarrier (UINT NumBarriers,
+                          const D3D12_RESOURCE_BARRIER* pBarriers)
+    {
+        for (UINT i = 0; i < NumBarriers; ++i)
+        {
+            const auto& barrier = pBarriers[i];
+            if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION)
+            {
+                D3D12_RESOURCE_TRANSITION_BARRIER transition_barrier = barrier.Transition;
+                {
+                    std::scoped_lock<std::mutex> lock (state_mutex_);
+                    auto resource = transition_barrier.pResource;
+                    auto resource_info_opt = resource_map_.GetResource (resource->GetGPUVirtualAddress(), resource->GetDesc().Width);
+                    if (resource_info_opt.has_value ())
+                    {
+                        resource_info_opt->barrier = transition_barrier;
+                        resource_map_.UpdateResource (*resource_info_opt);
+                    }
+                    else
+                    {
+                        ResourceMap::ResourceInfo resource_info {
+                            .resource = resource,
+                            .end_addr = resource->GetGPUVirtualAddress() + resource->GetDesc().Width,
+                            .barrier = transition_barrier
+                        };
+                        resource_map_.AddResource (resource_info, resource->GetGPUVirtualAddress ());
+                    }
+                }
+            }
+        }
+    }
+
+    // ========================================================================
+
     void BuildRaytracingAccelerationStructure (
         ID3D12GraphicsCommandList4* command_list,
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC* desc

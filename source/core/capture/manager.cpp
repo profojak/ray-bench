@@ -208,6 +208,17 @@ public:
 
     // ========================================================================
 
+    void Post_ID3D12GraphicsCommandList_ResourceBarrier (UINT NumBarriers,
+                                                         const D3D12_RESOURCE_BARRIER* pBarriers)
+    {
+        if (IsCaptureModeTrack ())
+        {
+            tracker_.ResourceBarrier (NumBarriers, pBarriers);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
     /// @brief `ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure` hook callback
     void Post_ID3D12GraphicsCommandList_BuildRaytracingAccelerationStructure (
         ID3D12GraphicsCommandList4* command_list,
