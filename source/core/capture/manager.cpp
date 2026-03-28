@@ -100,7 +100,7 @@ public:
     /// @brief Activate capture mode
     ///
     /// @param lock Shared lock to synchronize with API calls
-    void ActivateCapture (std::shared_lock<std::shared_mutex>& lock)
+    void ActivateCapture (std::shared_lock<APIMutex>& lock)
     {
         auto owns_lock = lock.owns_lock ();
         if (owns_lock)
@@ -127,7 +127,7 @@ public:
     /// @brief Deactivate capture mode
     ///
     /// @param lock Shared lock to synchronize with API calls
-    void DeactivateCapture (std::shared_lock<std::shared_mutex>& lock)
+    void DeactivateCapture (std::shared_lock<APIMutex>& lock)
     {
         auto owns_lock = lock.owns_lock ();
         if (owns_lock)
@@ -213,8 +213,11 @@ public:
 
     // ========================================================================
 
-    void Post_ID3D12GraphicsCommandList_ResourceBarrier (UINT,
-                                                         const D3D12_RESOURCE_BARRIER*)
+    void Post_ID3D12GraphicsCommandList_ResourceBarrier (
+        UINT,
+        const D3D12_RESOURCE_BARRIER*,
+        std::shared_lock<APIMutex>&
+    )
     {
         if (IsCaptureModeTrack ())
         {
@@ -223,10 +226,12 @@ public:
 
     // ------------------------------------------------------------------------
 
-    /// @brief `ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure` hook callback
+    /// @brief `ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure`
+    ///        hook callback
     void Post_ID3D12GraphicsCommandList_BuildRaytracingAccelerationStructure (
         ID3D12GraphicsCommandList4*,
-        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC*
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC*,
+        std::shared_lock<APIMutex>&
     )
     {
         if (IsCaptureModeTrack ())
