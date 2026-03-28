@@ -16,7 +16,6 @@ module;
 export module RayBench.Capture:Manager;
 
 import std;
-import :Tracker;
 import RayBench.Util;
 
 namespace raybench::capture
@@ -25,11 +24,10 @@ namespace raybench::capture
 /// @brief Capture manager
 export class Manager
 {
-public:
-    using APIMutex = std::shared_mutex;
+private:
 
     /// @brief Capture mode flags
-    enum CaptureModeFlags : uint8_t
+    enum class CaptureModeFlags : std::uint8_t
     {
         disabled = 0x0,
         write = 0x1,
@@ -38,6 +36,10 @@ public:
     };
 
     using CaptureMode = std::underlying_type_t<CaptureModeFlags>;
+
+public:
+
+    using APIMutex = std::shared_mutex;
 
     // ========================================================================
 
@@ -83,7 +85,7 @@ public:
     /// @brief Check if capture mode is set to write
     bool IsCaptureModeWrite () const noexcept
     {
-        return (capture_mode_ & CaptureModeFlags::write) == CaptureModeFlags::write;
+        return (capture_mode_ & std::to_underlying (CaptureModeFlags::write)) == std::to_underlying (CaptureModeFlags::write);
     }
 
     // ------------------------------------------------------------------------
@@ -91,10 +93,13 @@ public:
     /// @brief Check if capture mode is set to track
     bool IsCaptureModeTrack () const noexcept
     {
-        return (capture_mode_ & CaptureModeFlags::track) == CaptureModeFlags::track;
+        return (capture_mode_ & std::to_underlying (CaptureModeFlags::track)) == std::to_underlying (CaptureModeFlags::track);
     }
     // ------------------------------------------------------------------------
 
+    /// @brief Activate capture mode
+    ///
+    /// @param lock Shared lock to synchronize with API calls
     void ActivateCapture (std::shared_lock<std::shared_mutex>& lock)
     {
         auto owns_lock = lock.owns_lock ();
@@ -108,8 +113,7 @@ public:
 
             RAYBENCH_LOG_TRACE ("Activating capture...");
 
-            capture_mode_ |= CaptureModeFlags::write;
-            is_capturing_ = true;
+            capture_mode_ |= std::to_underlying (CaptureModeFlags::write);
         }
 
         if (owns_lock)
@@ -120,6 +124,9 @@ public:
 
     // ------------------------------------------------------------------------
 
+    /// @brief Deactivate capture mode
+    ///
+    /// @param lock Shared lock to synchronize with API calls
     void DeactivateCapture (std::shared_lock<std::shared_mutex>& lock)
     {
         auto owns_lock = lock.owns_lock ();
@@ -133,8 +140,7 @@ public:
 
             RAYBENCH_LOG_TRACE ("Deactivating capture...");
 
-            capture_mode_ &= ~CaptureModeFlags::write;
-            is_capturing_ = false;
+            capture_mode_ &= ~std::to_underlying (CaptureModeFlags::write);
         }
 
         if (owns_lock)
@@ -148,7 +154,7 @@ public:
     /// @brief Increment the API call depth counter
     ///
     /// @return The new API call depth
-    uint32_t CallDepthIncrement ()
+    std::uint32_t CallDepthIncrement ()
     {
         return ++api_call_depth_;
     }
@@ -158,7 +164,7 @@ public:
     /// @brief Decrement the API call depth counter
     ///
     /// @return The new API call depth
-    uint32_t CallDepthDecrement ()
+    std::uint32_t CallDepthDecrement ()
     {
         return --api_call_depth_;
     }
@@ -166,12 +172,11 @@ public:
     // ========================================================================
 
     /// @brief `ID3D12Resource::GetGPUVirtualAddress` hook callback
-    void Post_ID3D12Resource_GetGPUVirtualAddress (ID3D12Resource* resource,
+    void Post_ID3D12Resource_GetGPUVirtualAddress (ID3D12Resource*,
                                                    D3D12_GPU_VIRTUAL_ADDRESS addr)
     {
         if (IsCaptureModeTrack () && (addr != 0))
         {
-            tracker_.GetGPUVirtualAddress (resource, addr);
         }
     }
 
@@ -208,12 +213,11 @@ public:
 
     // ========================================================================
 
-    void Post_ID3D12GraphicsCommandList_ResourceBarrier (UINT NumBarriers,
-                                                         const D3D12_RESOURCE_BARRIER* pBarriers)
+    void Post_ID3D12GraphicsCommandList_ResourceBarrier (UINT,
+                                                         const D3D12_RESOURCE_BARRIER*)
     {
         if (IsCaptureModeTrack ())
         {
-            tracker_.ResourceBarrier (NumBarriers, pBarriers);
         }
     }
 
@@ -221,13 +225,12 @@ public:
 
     /// @brief `ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure` hook callback
     void Post_ID3D12GraphicsCommandList_BuildRaytracingAccelerationStructure (
-        ID3D12GraphicsCommandList4* command_list,
-        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC* desc
+        ID3D12GraphicsCommandList4*,
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC*
     )
     {
         if (IsCaptureModeTrack ())
         {
-            tracker_.BuildRaytracingAccelerationStructure (command_list, desc);
         }
     }
 
@@ -239,22 +242,18 @@ private:
     static APIMutex api_call_mutex_;
     ///< Thread-local variable to track the depth of API calls to prevent
     ///  re-entrant capture
-    static thread_local uint32_t api_call_depth_;
+    static thread_local std::uint32_t api_call_depth_;
 
-    ///< Capture tracker
-    Tracker tracker_;
     ///< Current capture mode
-    CaptureMode capture_mode_ = CaptureModeFlags::track;
+    CaptureMode capture_mode_ = std::to_underlying (CaptureModeFlags::track);
     ///< Key code to trigger frame capture
     raybench::util::Input::KeyCode capture_frame_key_ = raybench::util::Input::KeyCode::F12;
     ///< Flag indicating if frame capture key is currently pressed
     bool is_capture_frame_key_pressed_ = false;
-    ///< Flag indicating if capture is active
-    bool is_capturing_ = false;
 };
 
 Manager::APIMutex Manager::api_call_mutex_;
-thread_local uint32_t Manager::api_call_depth_ = 0;
+thread_local std::uint32_t Manager::api_call_depth_ = 0;
 
 }
 
