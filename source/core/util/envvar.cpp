@@ -15,7 +15,7 @@ export module RayBench.Util:EnvVar;
 import std;
 import :Log;
 
-namespace raybench::util::EnvVar
+namespace raybench::util::envvar
 {
 
 ///< Maximum length for environment variable values
@@ -48,26 +48,23 @@ export bool Set (std::string_view name, std::string_view value) noexcept
 /// @return The value of the environment variable, or std::nullopt if not found
 export [[nodiscard]] std::optional<std::string> Get (std::string_view name) noexcept
 {
-    std::array<char, max_env_var_length> buffer {};
-    DWORD result = GetEnvironmentVariableA (name.data (), buffer.data (),
-                                            static_cast<DWORD> (buffer.size ()));
-    if (result == 0)
+    const DWORD result_size = GetEnvironmentVariableA (name.data (), nullptr, 0);
+    if (result_size == 0)
     {
-        DWORD error = GetLastError ();
+        const DWORD error = GetLastError ();
         if (error != ERROR_ENVVAR_NOT_FOUND)
         {
             RAYBENCH_LOG_ERROR ("Failed to get environment variable '{}': {}", name, error);
         }
+        return std::nullopt;
     }
-    else if (result >= buffer.size ())
-    {
-        RAYBENCH_LOG_ERROR ("Too long environment variable '{}': required size {}", name, result);
-    }
-    else
-    {
-        return std::string (buffer.data (), result);
-    }
-    return std::nullopt;
+
+    std::string value;
+    value.resize_and_overwrite (static_cast<size_t>(result_size) - 1, [&](char* buf, size_t n) {
+        return static_cast<size_t>(GetEnvironmentVariableA (name.data (), buf, static_cast<DWORD>(n + 1)));
+    });
+
+    return value;
 }
 
 // ----------------------------------------------------------------------------
@@ -79,7 +76,7 @@ export void Unset (std::string_view name) noexcept
 {
     if (SetEnvironmentVariableA (name.data (), nullptr) == 0)
     {
-        DWORD error = GetLastError ();
+        const DWORD error = GetLastError ();
         RAYBENCH_LOG_ERROR ("Failed to unset environment variable '{}': {}", name, error);
     }
 }

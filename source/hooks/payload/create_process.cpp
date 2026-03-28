@@ -162,7 +162,7 @@ static BOOL CreateProcessImpl (const CharT* lpApplicationName,
 
     RAYBENCH_LOG_TRACE_ONCE ("Reinjecting and reconnecting to a new process...");
 
-    auto payload_dll_path = raybench::util::EnvVar::Get (raybench::util::EnvVar::payload_dll_path);
+    auto payload_dll_path = raybench::util::envvar::Get (raybench::util::envvar::payload_dll_path);
     if (payload_dll_path.has_value ())
     {
         if constexpr (std::is_same_v<CharT, char>)
@@ -177,7 +177,7 @@ static BOOL CreateProcessImpl (const CharT* lpApplicationName,
     else
     {
         RAYBENCH_LOG_CRITICAL ("Environment variable '{}' not set",
-                               raybench::util::EnvVar::payload_dll_path);
+                               raybench::util::envvar::payload_dll_path);
         return FALSE;
     }
 }

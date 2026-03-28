@@ -28,7 +28,7 @@ BOOL APIENTRY DllMain (HMODULE /*hModule*/,
     {
         case DLL_PROCESS_ATTACH:
         {
-            auto log_settings = raybench::util::EnvVar::Get (raybench::util::EnvVar::log_settings);
+            auto log_settings = raybench::util::envvar::Get (raybench::util::envvar::log_settings);
             if (log_settings.has_value ())
             {
                 raybench::util::Log::GetSettings ().Deserialize (log_settings.value ());

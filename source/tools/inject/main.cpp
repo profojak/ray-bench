@@ -41,7 +41,7 @@ int main (int argc, const char** argv)
     // Get logging settings from environment variable
     raybench::util::Log::Settings log_settings {};
 
-    auto env_log_settings = raybench::util::EnvVar::Get (raybench::util::EnvVar::log_settings);
+    auto env_log_settings = raybench::util::envvar::Get (raybench::util::envvar::log_settings);
     if (env_log_settings.has_value ())
     {
         log_settings.Deserialize (env_log_settings.value ());
@@ -67,7 +67,7 @@ int main (int argc, const char** argv)
 
     // Get the target application path from environment variable or command line argument
     std::string target_app_path;
-    auto envvar_target_app_path = raybench::util::EnvVar::Get (raybench::util::EnvVar::target_app_path);
+    auto envvar_target_app_path = raybench::util::envvar::Get (raybench::util::envvar::target_app_path);
     if (envvar_target_app_path.has_value ())
     {
         target_app_path = envvar_target_app_path.value ();
@@ -96,7 +96,7 @@ int main (int argc, const char** argv)
 
     // Get the payload dynamic-link library path from environment variable
     std::filesystem::path dll_path;
-    auto envvar_payload_dll_path = raybench::util::EnvVar::Get (raybench::util::EnvVar::payload_dll_path);
+    auto envvar_payload_dll_path = raybench::util::envvar::Get (raybench::util::envvar::payload_dll_path);
     if (envvar_payload_dll_path.has_value ())
     {
         dll_path = envvar_payload_dll_path.value ();
@@ -118,11 +118,11 @@ int main (int argc, const char** argv)
                         dll_path.string ());
     RAYBENCH_LOG_TRACE ("Setting environment variable for required dynamic-link library path...");
 
-    raybench::util::EnvVar::Set (raybench::util::EnvVar::payload_dll_path, dll_path.string ());
+    raybench::util::envvar::Set (raybench::util::envvar::payload_dll_path, dll_path.string ());
 
     RAYBENCH_LOG_TRACE ("Setting environment variable for logging settings...");
 
-    raybench::util::EnvVar::Set (raybench::util::EnvVar::log_settings,
+    raybench::util::envvar::Set (raybench::util::envvar::log_settings,
                                  raybench::util::Log::GetSettings ().Serialize ());
 
     raybench::util::LaunchInject (create_process_info.value (), dll_path.string ().c_str ());
