@@ -27,6 +27,12 @@ pfn_GetGPUVirtualAddress GetGPUVirtualAddress = nullptr;
 
 namespace Original_ID3D12GraphicsCommandList
 {
+using pfn_ResourceBarrier = void (WINAPI*)(ID3D12GraphicsCommandList*, UINT, const D3D12_RESOURCE_BARRIER*);
+
+pfn_ResourceBarrier ResourceBarrier = nullptr;
+
+// ----------------------------------------------------------------------------
+
 using pfn_BuildRaytracingAccelerationStructure = void (WINAPI*) (
     ID3D12GraphicsCommandList4*,
     const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC*,

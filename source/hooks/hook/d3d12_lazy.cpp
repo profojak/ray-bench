@@ -95,6 +95,22 @@ bool Hooked_ID3D12GraphicsCommandList::LazyHook (void** ppCommandList)
 {
     if (ppCommandList != nullptr && *ppCommandList != nullptr)
     {
+        ID3D12GraphicsCommandList* command_list = reinterpret_cast<ID3D12GraphicsCommandList*>(*ppCommandList);
+
+        if (Original_ID3D12GraphicsCommandList::ResourceBarrier == nullptr)
+        {
+            void** vtable = *reinterpret_cast<void***> (command_list);
+            Original_ID3D12GraphicsCommandList::ResourceBarrier = reinterpret_cast<Original_ID3D12GraphicsCommandList::pfn_ResourceBarrier> (
+                vtable[static_cast<int>(ID3D12GraphicsCommandList_VTable_ID::ResourceBarrier)]);
+
+            bool result = HookWrap (Original_ID3D12GraphicsCommandList::ResourceBarrier, ResourceBarrier,
+                                    "ID3D12GraphicsCommandList::ResourceBarrier"sv);
+            if (result == false)
+            {
+                return false;
+            }
+        }
+
         ID3D12GraphicsCommandList4* command_list4 = nullptr;
         if (FAILED (reinterpret_cast<ID3D12GraphicsCommandList*>(*ppCommandList)->QueryInterface (IID_PPV_ARGS (&command_list4))))
         {

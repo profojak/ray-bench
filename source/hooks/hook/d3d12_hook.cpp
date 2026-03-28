@@ -66,6 +66,28 @@ namespace Hooked_ID3D12GraphicsCommandList
 {
 RAYBENCH_LAZY_INIT;
 
+void WINAPI ResourceBarrier (ID3D12GraphicsCommandList* This, UINT NumBarriers, const D3D12_RESOURCE_BARRIER* pBarriers)
+{
+    auto& manager = Manager::GetManager ();
+
+    uint32_t call_depth = manager.CallDepthIncrement ();
+    if (call_depth > 1)
+    {
+        Original_ID3D12GraphicsCommandList::ResourceBarrier (This, NumBarriers, pBarriers);
+        manager.CallDepthDecrement ();
+        return;
+    }
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12GraphicsCommandList::ResourceBarrier'");
+
+    Original_ID3D12GraphicsCommandList::ResourceBarrier (This, NumBarriers, pBarriers);
+    manager.Post_ID3D12GraphicsCommandList_ResourceBarrier (NumBarriers, pBarriers);
+
+    manager.CallDepthDecrement ();
+}
+
+// ----------------------------------------------------------------------------
+
 void WINAPI BuildRaytracingAccelerationStructure (
     ID3D12GraphicsCommandList4* This,
     const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC* pDesc,
