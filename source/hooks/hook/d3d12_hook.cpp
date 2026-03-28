@@ -111,6 +111,8 @@ void WINAPI Barrier (ID3D12GraphicsCommandList7* This,
     Original_ID3D12GraphicsCommandList::Barrier (This, NumBarrierGroups, pBarrierGroups);
     // TODO: Add post-callback.
 
+    RAYBENCH_ASSERT (false, "Barrier hook callback is not implemented yet!");
+
     manager.CallDepthDecrement ();
 }
 
@@ -178,6 +180,7 @@ HRESULT WINAPI CreateCommittedResource (ID3D12Device* This,
     HRESULT hr = Original_ID3D12Device::CreateCommittedResource (This, pHeapProperties, HeapFlags, pDesc,
                                                                  InitialResourceState, pOptimizedClearValue,
                                                                  riidResource, ppvResource);
+    manager.Post_ID3D12Device_CreateResource (This, hr, ppvResource, InitialResourceState);
 
     manager.CallDepthDecrement ();
     return hr;

@@ -16,6 +16,7 @@ module;
 export module RayBench.Capture:Manager;
 
 import std;
+import :Tracker;
 import RayBench.Util;
 
 namespace raybench::capture
@@ -196,6 +197,7 @@ public:
     {
         if (IsCaptureModeTrack () && (addr != 0))
         {
+            // TODO: Store GPU virtual address for later use in frame capture.
         }
     }
 
@@ -229,6 +231,7 @@ public:
 
     // ========================================================================
 
+    /// @brief `ID3D12GraphicsCommandList::ResourceBarrier` hook callback
     void Post_ID3D12GraphicsCommandList_ResourceBarrier (
         UINT,
         const D3D12_RESOURCE_BARRIER*,
@@ -252,6 +255,22 @@ public:
     {
         if (IsCaptureModeTrack ())
         {
+            // TODO: Track ray tracing acceleration structure builds for later
+            // use in frame capture.
+        }
+    }
+
+    // ========================================================================
+
+    void Post_ID3D12Device_CreateResource (ID3D12Device* device, HRESULT hr, void** ppvResource, D3D12_RESOURCE_STATES InitialResourceState)
+    {
+        if (IsCaptureModeTrack ())
+        {
+            if (SUCCEEDED (hr) && ppvResource != nullptr && *ppvResource != nullptr)
+            {
+                ID3D12Resource* resource = static_cast<ID3D12Resource*> (*ppvResource);
+                tracker_.TrackResourceCreation (device, resource, InitialResourceState);
+            }
         }
     }
 
@@ -271,6 +290,9 @@ private:
     raybench::util::Input::KeyCode capture_frame_key_ = raybench::util::Input::KeyCode::F12;
     ///< Flag indicating if frame capture key is currently pressed
     bool is_capture_frame_key_pressed_ = false;
+
+    ///< State tracker
+    Tracker tracker_;
 };
 
 Manager::APIMutex Manager::api_call_mutex_;

@@ -21,5 +21,11 @@
     <ClCompile Include="capture.ixx">
       <Filter>Header Files</Filter>
     </ClCompile>
+    <ClCompile Include="tracker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="resource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
