@@ -77,7 +77,7 @@ public:
     /// @brief Get the current capture mode
     CaptureMode GetCaptureMode () const noexcept
     {
-        return capture_mode_;
+        return capture_mode_.load ();
     }
 
     // ------------------------------------------------------------------------
@@ -85,7 +85,7 @@ public:
     /// @brief Check if capture mode is set to write
     bool IsCaptureModeWrite () const noexcept
     {
-        return (capture_mode_ & std::to_underlying (CaptureModeFlags::write)) == std::to_underlying (CaptureModeFlags::write);
+        return (capture_mode_.load () & std::to_underlying (CaptureModeFlags::write)) == std::to_underlying (CaptureModeFlags::write);
     }
 
     // ------------------------------------------------------------------------
@@ -93,7 +93,7 @@ public:
     /// @brief Check if capture mode is set to track
     bool IsCaptureModeTrack () const noexcept
     {
-        return (capture_mode_ & std::to_underlying (CaptureModeFlags::track)) == std::to_underlying (CaptureModeFlags::track);
+        return (capture_mode_.load () & std::to_underlying (CaptureModeFlags::track)) == std::to_underlying (CaptureModeFlags::track);
     }
     // ------------------------------------------------------------------------
 
@@ -102,8 +102,13 @@ public:
     /// @param lock Shared lock to synchronize with API calls
     void ActivateCapture (std::shared_lock<APIMutex>& lock)
     {
-        auto owns_lock = lock.owns_lock ();
-        if (owns_lock)
+        if (IsCaptureModeWrite () == true)
+        {
+            return;
+        }
+
+        const bool owns_lock = lock.owns_lock ();
+        if (owns_lock == true)
         {
             lock.unlock ();
         }
@@ -111,12 +116,18 @@ public:
         {
             auto exclusive_lock = GetUniqueLock ();
 
-            RAYBENCH_LOG_TRACE ("Activating capture...");
+            if (IsCaptureModeWrite () == false)
+            {
+                if (raybench::util::Input::IsKeyJustPressed (capture_frame_key_, is_capture_frame_key_pressed_) == true)
+                {
+                    RAYBENCH_LOG_TRACE ("Activating capture...");
 
-            capture_mode_ |= std::to_underlying (CaptureModeFlags::write);
+                    capture_mode_.fetch_or (std::to_underlying (CaptureModeFlags::write));
+                }
+            }
         }
 
-        if (owns_lock)
+        if (owns_lock == true)
         {
             lock.lock ();
         }
@@ -129,8 +140,13 @@ public:
     /// @param lock Shared lock to synchronize with API calls
     void DeactivateCapture (std::shared_lock<APIMutex>& lock)
     {
-        auto owns_lock = lock.owns_lock ();
-        if (owns_lock)
+        if (IsCaptureModeWrite () == false)
+        {
+            return;
+        }
+
+        const bool owns_lock = lock.owns_lock ();
+        if (owns_lock == true)
         {
             lock.unlock ();
         }
@@ -138,12 +154,15 @@ public:
         {
             auto exclusive_lock = GetUniqueLock ();
 
-            RAYBENCH_LOG_TRACE ("Deactivating capture...");
+            if (IsCaptureModeWrite () == true)
+            {
+                RAYBENCH_LOG_TRACE ("Deactivating capture...");
 
-            capture_mode_ &= ~std::to_underlying (CaptureModeFlags::write);
+                capture_mode_.fetch_and (~std::to_underlying (CaptureModeFlags::write));
+            }
         }
 
-        if (owns_lock)
+        if (owns_lock == true)
         {
             lock.lock ();
         }
@@ -204,10 +223,7 @@ public:
         }
         else if (IsCaptureModeTrack ())
         {
-            if (raybench::util::Input::IsKeyJustPressed (capture_frame_key_, is_capture_frame_key_pressed_))
-            {
-                ActivateCapture (lock);
-            }
+            ActivateCapture (lock);
         }
     }
 
@@ -250,7 +266,7 @@ private:
     static thread_local std::uint32_t api_call_depth_;
 
     ///< Current capture mode
-    CaptureMode capture_mode_ = std::to_underlying (CaptureModeFlags::track);
+    std::atomic<CaptureMode> capture_mode_ { std::to_underlying (CaptureModeFlags::track) };
     ///< Key code to trigger frame capture
     raybench::util::Input::KeyCode capture_frame_key_ = raybench::util::Input::KeyCode::F12;
     ///< Flag indicating if frame capture key is currently pressed
