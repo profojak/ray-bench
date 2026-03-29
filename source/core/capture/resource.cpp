@@ -60,7 +60,7 @@ public:
     /// @param minimum_size Minimum size of resource to be considered a match
     /// @return The resource associated with the GPU virtual address, or
     ///         'nullptr' if not found
-    [[nodiscard]] ID3D12Resource* Get (D3D12_GPU_VIRTUAL_ADDRESS addr, UINT64 minimum_size)
+    [[nodiscard]] ID3D12Resource* Get (D3D12_GPU_VIRTUAL_ADDRESS addr, UINT64 minimum_size) const
     {
         if (addr == 0)
         {
@@ -134,27 +134,27 @@ private:
 // ============================================================================
 
 class PendingTransitionTracker;
+class Tracker;
 
 /// @brief Track state of 'ID3D12Resource's
 class ResourceStateTracker
 {
     friend class PendingTransitionTracker;
+    friend class Tracker;
 
 public:
 
     /// @brief Update the state of a resource
     void Update (ID3D12Resource* resource, const ResourceState& state)
     {
-        std::unique_lock lock (mutex_);
         state_map_[resource] = state;
     }
 
     // ------------------------------------------------------------------------
 
     /// @brief Get the state of a resource
-    [[nodiscard]] std::optional<ResourceState> Get (ID3D12Resource* resource)
+    [[nodiscard]] std::optional<ResourceState> Get (ID3D12Resource* resource) const
     {
-        std::shared_lock lock (mutex_);
         auto it = state_map_.find (resource);
         if (it != state_map_.end ())
         {
@@ -170,8 +170,6 @@ private:
 
     // ========================================================================
 
-    ///< Mutex to protect access to the resource state map
-    std::shared_mutex mutex_;
     ///< Map of 'ID3D12Resource' to their state
     std::unordered_map<ID3D12Resource*, ResourceState> state_map_;
 };
@@ -181,6 +179,8 @@ private:
 /// @brief Track pending resource transitions for command lists
 class PendingTransitionTracker
 {
+    friend class Tracker;
+
 public:
 
     /// @brief Update the pending resource transitions of a command list with
@@ -191,7 +191,6 @@ public:
     /// @param barriers Pointer to the barriers
     void Update (ID3D12GraphicsCommandList* command_list, UINT num_barriers, const D3D12_RESOURCE_BARRIER* barriers)
     {
-        std::unique_lock lock (mutex_);
         auto& cl_transitions = pending_transitions_[command_list];
 
         for (UINT i = 0; i < num_barriers; ++i)
@@ -218,14 +217,12 @@ public:
     /// @param resource_state_tracker Resource state tracker to update
     void Commit (ID3D12GraphicsCommandList* command_list, ResourceStateTracker& resource_state_tracker)
     {
-        std::unique_lock lock (mutex_);
         auto it = pending_transitions_.find (command_list);
         if (it == pending_transitions_.end ())
         {
             return;
         }
 
-        std::unique_lock state_lock (resource_state_tracker.mutex_);
         const auto& cl_transitions = it->second;
         for (const auto& transition : cl_transitions)
         {
@@ -278,8 +275,6 @@ private:
         D3D12_RESOURCE_STATES state_after;
     };
 
-    ///< Mutex to protect access to the pending transitions map
-    std::shared_mutex mutex_;
     ///< Map of command list to its sequence of pending resource transitions
     std::unordered_map<ID3D12GraphicsCommandList*, std::vector<PendingTransition>> pending_transitions_;
 };

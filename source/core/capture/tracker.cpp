@@ -34,6 +34,7 @@ public:
     /// @param addr GPU virtual address
     void TrackVirtualAddress (ID3D12Resource* resource, D3D12_GPU_VIRTUAL_ADDRESS addr)
     {
+        std::unique_lock lock (state_mutex_);
         virtual_address_tracker_.Add (resource, addr);
     }
 
@@ -76,6 +77,7 @@ public:
             subresource_state = initial_state;
         }
 
+        std::unique_lock lock (state_mutex_);
         resource_state_tracker_.Update (resource, state);
     }
 
@@ -88,6 +90,7 @@ public:
     /// @param barriers Pointer to the barriers
     void TrackResourceBarrier (ID3D12GraphicsCommandList* command_list, UINT num_barriers, const D3D12_RESOURCE_BARRIER* barriers)
     {
+        std::unique_lock lock (state_mutex_);
         pending_transition_tracker_.Update (command_list, num_barriers, barriers);
     }
 
@@ -100,6 +103,7 @@ public:
     /// @param pp_command_lists Pointer to the command lists being executed
     void TrackExecuteCommandLists (UINT num_command_lists, ID3D12CommandList* const* pp_command_lists)
     {
+        std::unique_lock lock (state_mutex_);
         for (UINT i = 0; i < num_command_lists; ++i)
         {
             ID3D12GraphicsCommandList* command_list = nullptr;
@@ -115,6 +119,8 @@ private:
 
     // ========================================================================
 
+    ///< Mutex for synchronizing access to the capture state
+    mutable std::shared_mutex state_mutex_;
     ///< Map of GPU virtual addresses for reverse lookup
     VirtualAddressTracker virtual_address_tracker_;
     ///< 'ID3D12Resource' state tracker
