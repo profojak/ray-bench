@@ -133,7 +133,9 @@ public:
             auto state_it = resource_state_tracker.state_map_.find (resource);
             if (state_it == resource_state_tracker.state_map_.end ())
             {
-                RAYBENCH_LOG_ERROR ("Resource not found in state tracker when committing pending transitions!");
+                // TODO: Still missing some resource hooks
+                // (e.g., 'IDXGISwapChain::GetBuffer')
+                RAYBENCH_LOG_ERROR_ONCE ("Resource not found in state tracker when committing pending transitions!");
                 continue;
             }
 
@@ -147,7 +149,7 @@ public:
             }
             else if (subresource >= resource_state.subresource_states.size ())
             {
-                RAYBENCH_LOG_ERROR ("Invalid subresource index when committing pending transitions!");
+                RAYBENCH_LOG_ERROR_ONCE ("Invalid subresource index when committing pending transitions!");
                 continue;
             }
             else
