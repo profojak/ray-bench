@@ -27,6 +27,18 @@ export class Tracker
 {
 public:
 
+    /// @brief Track GPU virtual address associated with resource for reverse
+    ///        lookup
+    ///
+    /// @param resource Resource associated with the GPU virtual address
+    /// @param addr GPU virtual address
+    void TrackVirtualAddress (ID3D12Resource* resource, D3D12_GPU_VIRTUAL_ADDRESS addr)
+    {
+        virtual_address_tracker_.Add (resource, addr);
+    }
+
+    // ========================================================================
+
     /// @brief Track the creation of 'ID3D12Resource' and initialize its state
     ///
     /// @param device Device used to create the resource
@@ -79,7 +91,7 @@ public:
         pending_transition_tracker_.Update (command_list, num_barriers, barriers);
     }
 
-    // ------------------------------------------------------------------------
+    // ========================================================================
 
     /// @brief Track execution of command lists and commit their pending
     ///        resource transitions to the resource state tracker
@@ -103,6 +115,8 @@ private:
 
     // ========================================================================
 
+    ///< Map of GPU virtual addresses for reverse lookup
+    VirtualAddressTracker virtual_address_tracker_;
     ///< 'ID3D12Resource' state tracker
     ResourceStateTracker resource_state_tracker_;
     ///< Pending resource transitions for command lists tracker

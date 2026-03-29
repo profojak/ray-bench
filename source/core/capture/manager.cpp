@@ -192,12 +192,12 @@ public:
     // ========================================================================
 
     /// @brief `ID3D12Resource::GetGPUVirtualAddress` hook callback
-    void Post_ID3D12Resource_GetGPUVirtualAddress (ID3D12Resource*,
+    void Post_ID3D12Resource_GetGPUVirtualAddress (ID3D12Resource* This,
                                                    D3D12_GPU_VIRTUAL_ADDRESS addr)
     {
         if (IsCaptureModeTrack () && (addr != 0))
         {
-            // TODO: Store GPU virtual address for later use in frame capture.
+            tracker_.TrackVirtualAddress (This, addr);
         }
     }
 
