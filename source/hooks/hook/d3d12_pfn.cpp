@@ -50,6 +50,15 @@ pfn_BuildRaytracingAccelerationStructure BuildRaytracingAccelerationStructure = 
 
 // ============================================================================
 
+namespace Original_ID3D12CommandQueue
+{
+using pfn_ExecuteCommandLists = void (WINAPI*)(ID3D12CommandQueue*, UINT, ID3D12CommandList* const*);
+
+pfn_ExecuteCommandLists ExecuteCommandLists = nullptr;
+}
+
+// ============================================================================
+
 namespace Original_ID3D12Device
 {
 using pfn_CreateCommittedResource = HRESULT (WINAPI*) (ID3D12Device*,
@@ -163,8 +172,14 @@ using pfn_CreateCommandQueue = HRESULT (WINAPI*)(ID3D12Device*,
                                                  const D3D12_COMMAND_QUEUE_DESC*,
                                                  REFIID,
                                                  void**);
+using pfn_CreateCommandQueue1 = HRESULT (WINAPI*)(ID3D12Device9*,
+                                                  const D3D12_COMMAND_QUEUE_DESC*,
+                                                  REFIID,
+                                                  REFIID,
+                                                  void**);
 
 pfn_CreateCommandQueue CreateCommandQueue = nullptr;
+pfn_CreateCommandQueue1 CreateCommandQueue1 = nullptr;
 
 // ----------------------------------------------------------------------------
 

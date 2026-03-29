@@ -161,6 +161,39 @@ bool Hooked_ID3D12GraphicsCommandList::LazyHook (void** ppCommandList)
 
 // ----------------------------------------------------------------------------
 
+/// @brief Hook `ID3D12CommandQueue` API calls
+///
+/// @param ppCommandQueue `ID3D12CommandQueue`
+/// @return True if successful, false otherwise
+bool Hooked_ID3D12CommandQueue::LazyHook (void** ppCommandQueue)
+{
+    if (ppCommandQueue != nullptr && *ppCommandQueue != nullptr)
+    {
+        ID3D12CommandQueue* command_queue = reinterpret_cast<ID3D12CommandQueue*>(*ppCommandQueue);
+
+        if (Original_ID3D12CommandQueue::ExecuteCommandLists == nullptr)
+        {
+            void** vtable = *reinterpret_cast<void***> (command_queue);
+            Original_ID3D12CommandQueue::ExecuteCommandLists = reinterpret_cast<Original_ID3D12CommandQueue::pfn_ExecuteCommandLists> (
+                vtable[static_cast<int>(ID3D12CommandQueue_VTable_ID::ExecuteCommandLists)]);
+
+            bool result = HookWrap (Original_ID3D12CommandQueue::ExecuteCommandLists, ExecuteCommandLists,
+                                    "ID3D12CommandQueue::ExecuteCommandLists"sv);
+            if (result == false)
+            {
+                return false;
+            }
+        }
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
+// ----------------------------------------------------------------------------
+
 /// @brief Hook `ID3D12Device` API calls
 ///
 /// @param ppDevice `ID3D12Device`
@@ -309,6 +342,26 @@ bool Hooked_ID3D12Device::LazyHook (void** ppDevice)
             {
                 return false;
             }
+        }
+
+        ID3D12Device9* device9 = nullptr;
+        if (SUCCEEDED (reinterpret_cast<ID3D12Device*>(*ppDevice)->QueryInterface (IID_PPV_ARGS (&device9))))
+        {
+            if (Original_ID3D12Device::CreateCommandQueue1 == nullptr)
+            {
+                void** vtable = *reinterpret_cast<void***> (device9);
+                Original_ID3D12Device::CreateCommandQueue1 = reinterpret_cast<Original_ID3D12Device::pfn_CreateCommandQueue1> (
+                    vtable[static_cast<int>(ID3D12Device9_VTable_ID::CreateCommandQueue1)]);
+
+                bool result = HookWrap (Original_ID3D12Device::CreateCommandQueue1, CreateCommandQueue1,
+                                        "ID3D12Device9::CreateCommandQueue1"sv);
+                if (result == false)
+                {
+                    device9->Release ();
+                    return false;
+                }
+            }
+            device9->Release ();
         }
 
         ID3D12Device10* device10 = nullptr;

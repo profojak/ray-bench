@@ -83,7 +83,7 @@ void WINAPI ResourceBarrier (ID3D12GraphicsCommandList* This, UINT NumBarriers, 
     std::shared_lock<Manager::APIMutex> lock = Manager::GetSharedLock ();
 
     Original_ID3D12GraphicsCommandList::ResourceBarrier (This, NumBarriers, pBarriers);
-    manager.Post_ID3D12GraphicsCommandList_ResourceBarrier (NumBarriers, pBarriers, lock);
+    manager.Post_ID3D12GraphicsCommandList_ResourceBarrier (This, NumBarriers, pBarriers, lock);
 
     manager.CallDepthDecrement ();
 }
@@ -150,9 +150,72 @@ void WINAPI BuildRaytracingAccelerationStructure (
 
 // ============================================================================
 
+namespace Hooked_ID3D12CommandQueue
+{
+RAYBENCH_LAZY_INIT;
+
+void WINAPI ExecuteCommandLists (ID3D12CommandQueue* This, UINT NumCommandLists, ID3D12CommandList* const* ppCommandLists)
+{
+    auto& manager = Manager::GetManager ();
+
+    uint32_t call_depth = manager.CallDepthIncrement ();
+    if (call_depth > 1)
+    {
+        Original_ID3D12CommandQueue::ExecuteCommandLists (This, NumCommandLists, ppCommandLists);
+        manager.CallDepthDecrement ();
+        return;
+    }
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12CommandQueue::ExecuteCommandLists'");
+
+    std::shared_lock<Manager::APIMutex> lock = Manager::GetSharedLock ();
+
+    Original_ID3D12CommandQueue::ExecuteCommandLists (This, NumCommandLists, ppCommandLists);
+    manager.Post_ID3D12CommandQueue_ExecuteCommandLists (NumCommandLists, ppCommandLists, lock);
+
+    manager.CallDepthDecrement ();
+}
+
+}
+
+// ============================================================================
+
 namespace Hooked_ID3D12Device
 {
 RAYBENCH_LAZY_INIT;
+
+HRESULT WINAPI CreateCommandQueue (ID3D12Device* This,
+                                   const D3D12_COMMAND_QUEUE_DESC* pDesc,
+                                   REFIID riid,
+                                   void** ppCommandQueue)
+{
+    HRESULT hr = Original_ID3D12Device::CreateCommandQueue (This, pDesc, riid, ppCommandQueue);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandQueue'");
+
+    RAYBENCH_LAZY_HOOK (SUCCEEDED (hr), Hooked_ID3D12CommandQueue, ppCommandQueue);
+
+    return hr;
+}
+
+// ----------------------------------------------------------------------------
+
+HRESULT WINAPI CreateCommandQueue1 (ID3D12Device9* This,
+                                    const D3D12_COMMAND_QUEUE_DESC* pDesc,
+                                    REFIID CreatorID,
+                                    REFIID riid,
+                                    void** ppCommandQueue)
+{
+    HRESULT hr = Original_ID3D12Device::CreateCommandQueue1 (This, pDesc, CreatorID, riid, ppCommandQueue);
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Device::CreateCommandQueue1'");
+
+    RAYBENCH_LAZY_HOOK (SUCCEEDED (hr), Hooked_ID3D12CommandQueue, ppCommandQueue);
+
+    return hr;
+}
+
+// ----------------------------------------------------------------------------
 
 HRESULT WINAPI CreateCommittedResource (ID3D12Device* This,
                                         const D3D12_HEAP_PROPERTIES* pHeapProperties,
