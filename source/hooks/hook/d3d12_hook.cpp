@@ -215,6 +215,7 @@ HRESULT WINAPI CreateCommittedResource1 (ID3D12Device4* This,
     HRESULT hr = Original_ID3D12Device::CreateCommittedResource1 (This, pHeapProperties, HeapFlags, pDesc,
                                                                   InitialResourceState, pOptimizedClearValue,
                                                                   pProtectedSession, riidResource, ppvResource);
+    manager.Post_ID3D12Device_CreateResource (This, hr, ppvResource, InitialResourceState);
 
     manager.CallDepthDecrement ();
     return hr;
@@ -249,6 +250,7 @@ HRESULT WINAPI CreateCommittedResource2 (ID3D12Device8* This,
     HRESULT hr = Original_ID3D12Device::CreateCommittedResource2 (This, pHeapProperties, HeapFlags, pDesc,
                                                                   InitialResourceState, pOptimizedClearValue,
                                                                   pProtectedSession, riidResource, ppvResource);
+    manager.Post_ID3D12Device_CreateResource (This, hr, ppvResource, InitialResourceState);
 
     manager.CallDepthDecrement ();
     return hr;
@@ -287,6 +289,7 @@ HRESULT WINAPI CreateCommittedResource3 (ID3D12Device10* This,
                                                                   InitialLayout, pOptimizedClearValue,
                                                                   pProtectedSession, NumCastableFormats,
                                                                   pCastableFormats, riidResource, ppvResource);
+    // TODO: Add D3D12_BARRIER_LAYOUT support in the post-callback.
 
     manager.CallDepthDecrement ();
     return hr;
@@ -318,6 +321,7 @@ HRESULT WINAPI CreatePlacedResource (ID3D12Device* This,
 
     HRESULT hr = Original_ID3D12Device::CreatePlacedResource (This, pHeap, HeapOffset, pDesc, InitialState,
                                                               pOptimizedClearValue, riid, ppvResource);
+    manager.Post_ID3D12Device_CreateResource (This, hr, ppvResource, InitialState);
 
     manager.CallDepthDecrement ();
     return hr;
@@ -349,6 +353,7 @@ HRESULT WINAPI CreatePlacedResource1 (ID3D12Device8* This,
 
     HRESULT hr = Original_ID3D12Device::CreatePlacedResource1 (This, pHeap, HeapOffset, pDesc, InitialState,
                                                                pOptimizedClearValue, riid, ppvResource);
+    manager.Post_ID3D12Device_CreateResource (This, hr, ppvResource, InitialState);
 
     manager.CallDepthDecrement ();
     return hr;
@@ -384,6 +389,7 @@ HRESULT WINAPI CreatePlacedResource2 (ID3D12Device10* This,
     HRESULT hr = Original_ID3D12Device::CreatePlacedResource2 (This, pHeap, HeapOffset, pDesc, InitialLayout,
                                                                pOptimizedClearValue, NumCastableFormats,
                                                                pCastableFormats, riid, ppvResource);
+    // TODO: Add D3D12_BARRIER_LAYOUT support in the post-callback.
 
     manager.CallDepthDecrement ();
     return hr;
@@ -413,6 +419,7 @@ HRESULT WINAPI CreateReservedResource (ID3D12Device* This,
 
     HRESULT hr = Original_ID3D12Device::CreateReservedResource (This, pDesc, InitialState, pOptimizedClearValue,
                                                                 riid, ppvResource);
+    manager.Post_ID3D12Device_CreateResource (This, hr, ppvResource, InitialState);
 
     manager.CallDepthDecrement ();
     return hr;
@@ -443,6 +450,7 @@ HRESULT WINAPI CreateReservedResource1 (ID3D12Device4* This,
 
     HRESULT hr = Original_ID3D12Device::CreateReservedResource1 (This, pDesc, InitialState, pOptimizedClearValue,
                                                                  pProtectedSession, riid, ppvResource);
+    manager.Post_ID3D12Device_CreateResource (This, hr, ppvResource, InitialState);
 
     manager.CallDepthDecrement ();
     return hr;
@@ -477,6 +485,7 @@ HRESULT WINAPI CreateReservedResource2 (ID3D12Device10* This,
     HRESULT hr = Original_ID3D12Device::CreateReservedResource2 (This, pDesc, InitialLayout, pOptimizedClearValue,
                                                                  pProtectedSession, NumCastableFormats,
                                                                  pCastableFormats, riid, ppvResource);
+    // TODO: Add D3D12_BARRIER_LAYOUT support in the post-callback.
 
     manager.CallDepthDecrement ();
     return hr;
