@@ -67,12 +67,46 @@ public:
         resource_state_tracker_.Update (resource, state);
     }
 
+    // ------------------------------------------------------------------------
+
+    /// @brief Track a resource barrier on a specific command list
+    ///
+    /// @param command_list Command list the barrier is recorded on
+    /// @param num_barriers Number of barriers
+    /// @param barriers Pointer to the barriers
+    void TrackResourceBarrier (ID3D12GraphicsCommandList* command_list, UINT num_barriers, const D3D12_RESOURCE_BARRIER* barriers)
+    {
+        pending_transition_tracker_.Update (command_list, num_barriers, barriers);
+    }
+
+    // ------------------------------------------------------------------------
+
+    /// @brief Track execution of command lists and commit their pending
+    ///        resource transitions to the resource state tracker
+    ///
+    /// @param num_command_lists Number of command lists being executed
+    /// @param pp_command_lists Pointer to the command lists being executed
+    void TrackExecuteCommandLists (UINT num_command_lists, ID3D12CommandList* const* pp_command_lists)
+    {
+        for (UINT i = 0; i < num_command_lists; ++i)
+        {
+            ID3D12GraphicsCommandList* command_list = nullptr;
+            if (SUCCEEDED (pp_command_lists[i]->QueryInterface (IID_PPV_ARGS (&command_list))))
+            {
+                pending_transition_tracker_.Commit (command_list, resource_state_tracker_);
+                command_list->Release ();
+            }
+        }
+    }
+
 private:
 
     // ========================================================================
 
     ///< 'ID3D12Resource' state tracker
     ResourceStateTracker resource_state_tracker_;
+    ///< Pending resource transitions for command lists tracker
+    PendingTransitionTracker pending_transition_tracker_;
 };
 
 }

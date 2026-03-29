@@ -232,14 +232,14 @@ public:
     // ========================================================================
 
     /// @brief `ID3D12GraphicsCommandList::ResourceBarrier` hook callback
-    void Post_ID3D12GraphicsCommandList_ResourceBarrier (
-        UINT,
-        const D3D12_RESOURCE_BARRIER*,
-        std::shared_lock<APIMutex>&
-    )
+    void Post_ID3D12GraphicsCommandList_ResourceBarrier (ID3D12GraphicsCommandList* This,
+                                                         UINT NumBarriers,
+                                                         const D3D12_RESOURCE_BARRIER* pBarriers,
+                                                         std::shared_lock<APIMutex>&)
     {
         if (IsCaptureModeTrack ())
         {
+            tracker_.TrackResourceBarrier (This, NumBarriers, pBarriers);
         }
     }
 
@@ -257,6 +257,18 @@ public:
         {
             // TODO: Track ray tracing acceleration structure builds for later
             // use in frame capture.
+        }
+    }
+
+    // ========================================================================
+
+    void Post_ID3D12CommandQueue_ExecuteCommandLists (UINT NumCommandLists,
+                                                      ID3D12CommandList* const* ppCommandLists,
+                                                      std::shared_lock<APIMutex>&)
+    {
+        if (IsCaptureModeTrack ())
+        {
+            tracker_.TrackExecuteCommandLists (NumCommandLists, ppCommandLists);
         }
     }
 
@@ -285,7 +297,7 @@ private:
     static thread_local std::uint32_t api_call_depth_;
 
     ///< Current capture mode
-    std::atomic<CaptureMode> capture_mode_ { std::to_underlying (CaptureModeFlags::track) };
+    std::atomic<CaptureMode> capture_mode_ {std::to_underlying (CaptureModeFlags::track)};
     ///< Key code to trigger frame capture
     raybench::util::Input::KeyCode capture_frame_key_ = raybench::util::Input::KeyCode::F12;
     ///< Flag indicating if frame capture key is currently pressed
