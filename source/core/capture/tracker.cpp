@@ -251,7 +251,7 @@ public:
             const AccelerationStructureTracker::InputsEntry& a,
             const AccelerationStructureTracker::InputsEntry& b)
             {
-                return *a.dest_addr < *b.dest_addr;
+                return *a.src_addr < *b.src_addr;
             });
 
         ID3D12Resource* copyback_resource = nullptr;
@@ -297,7 +297,7 @@ public:
             ID3D12Resource* src_resource = nullptr;
             {
                 std::scoped_lock lock (state_mutex_);
-                src_resource = virtual_address_tracker_.Get (*entry_it->dest_addr, entry_it->size);
+                src_resource = virtual_address_tracker_.Get (*entry_it->src_addr, entry_it->size);
                 if (src_resource == nullptr)
                 {
                     RAYBENCH_LOG_ERROR ("Failed to retrieve GPU virtual address for build input resource!");
@@ -369,7 +369,7 @@ public:
                 ID3D12Resource* dummy_resource = nullptr;
                 {
                     std::scoped_lock lock (state_mutex_);
-                    dummy_resource = virtual_address_tracker_.Get (*entry_it->dest_addr, entry_it->size);
+                    dummy_resource = virtual_address_tracker_.Get (*entry_it->src_addr, entry_it->size);
                     if (dummy_resource == nullptr)
                     {
                         break;
@@ -380,7 +380,7 @@ public:
                     }
                 }
 
-                auto dest_addr = *entry_it->dest_addr;
+                auto dest_addr = *entry_it->src_addr;
                 auto dest_offset = entry_it->offset;
                 auto dest_size = entry_it->size;
                 auto src_offset = dest_addr - src_resource->GetGPUVirtualAddress ();

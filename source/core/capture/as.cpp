@@ -51,7 +51,7 @@ public:
     struct InputsEntry
     {
         ///< GPU virtual address of the inputs buffer
-        const D3D12_GPU_VIRTUAL_ADDRESS* dest_addr {nullptr};
+        const D3D12_GPU_VIRTUAL_ADDRESS* src_addr {nullptr};
         ///< Size of the inputs entry in the inputs buffer
         UINT64 size {0};
         ///< Offset of the inputs entry in the inputs buffer
