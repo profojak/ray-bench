@@ -307,23 +307,27 @@ public:
             }
 
             ResourceStateTracker::ResourceState src_state;
+            const std::vector<PendingTransitionTracker::PendingTransition>* src_transitions = nullptr;
+            std::optional<ResourceStateTracker::ResourceState> src_state_opt;
 
             {
                 std::scoped_lock lock (state_mutex_);
-                auto src_state_opt = resource_state_tracker_.Get (src_resource);
+                src_state_opt = resource_state_tracker_.Get (src_resource);
                 if (src_state_opt.has_value () == false)
                 {
-                    RAYBENCH_LOG_ERROR ("Failed to retrieve state for build input resource!");
+                    RAYBENCH_LOG_ERROR ("Failed to retrieve global state for build input resource!");
                     ++entry_it;
                     continue;
                 }
                 src_state = src_state_opt.value ();
+                src_transitions = pending_transition_tracker_.Get (command_list);
+            }
 
                 // Check if there are any pending state transitions for resource
                 // on this command list and update the state if so
-                if (const auto* transitions = pending_transition_tracker_.Get (command_list))
+            if (src_transitions != nullptr)
                 {
-                    for (const auto& transition : *transitions)
+                for (const auto& transition : *src_transitions)
                     {
                         if (transition.resource == src_resource)
                         {
