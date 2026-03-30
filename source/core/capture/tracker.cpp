@@ -323,42 +323,46 @@ public:
                 src_transitions = pending_transition_tracker_.Get (command_list);
             }
 
-                // Check if there are any pending state transitions for resource
-                // on this command list and update the state if so
+            // Check if there are any pending state transitions for resource
+            // on this command list and update the state if so
             if (src_transitions != nullptr)
-                {
+            {
                 for (const auto& transition : *src_transitions)
+                {
+                    if (transition.resource == src_resource)
                     {
-                        if (transition.resource == src_resource)
+                        if (transition.subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
                         {
-                            if (transition.subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+                            for (auto& state : src_state.subresource_states)
                             {
-                                for (auto& state : src_state.subresource_states)
-                                {
-                                    state = transition.state_after;
-                                }
+                                state = transition.state_after;
                             }
-                            else if (transition.subresource < src_state.subresource_states.size ())
-                            {
-                                src_state.subresource_states[transition.subresource] = transition.state_after;
-                            }
+                        }
+                        else if (transition.subresource < src_state.subresource_states.size ())
+                        {
+                            src_state.subresource_states[transition.subresource] = transition.state_after;
                         }
                     }
                 }
             }
 
-            D3D12_RESOURCE_TRANSITION_BARRIER pre_transition_barrier {};
-            pre_transition_barrier.pResource = src_resource;
-            pre_transition_barrier.Subresource = 0;
-            pre_transition_barrier.StateBefore = src_state.subresource_states[0];
-            pre_transition_barrier.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+            bool state_transition_needed = (src_state.subresource_states[0] & D3D12_RESOURCE_STATE_COPY_SOURCE) == 0;
 
-            D3D12_RESOURCE_BARRIER pre_resource_barrier {};
-            pre_resource_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            pre_resource_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-            pre_resource_barrier.Transition = pre_transition_barrier;
+            if (state_transition_needed)
+            {
+                D3D12_RESOURCE_TRANSITION_BARRIER pre_transition_barrier {};
+                pre_transition_barrier.pResource = src_resource;
+                pre_transition_barrier.Subresource = 0;
+                pre_transition_barrier.StateBefore = src_state.subresource_states[0];
+                pre_transition_barrier.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
 
-            command_list->ResourceBarrier (1, &pre_resource_barrier);
+                D3D12_RESOURCE_BARRIER pre_resource_barrier {};
+                pre_resource_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                pre_resource_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+                pre_resource_barrier.Transition = pre_transition_barrier;
+
+                command_list->ResourceBarrier (1, &pre_resource_barrier);
+            }
 
             while (entry_it != inputs_entries.end ())
             {
@@ -384,18 +388,21 @@ public:
                 ++entry_it;
             }
 
-            D3D12_RESOURCE_TRANSITION_BARRIER post_transition_barrier {};
-            post_transition_barrier.pResource = src_resource;
-            post_transition_barrier.Subresource = 0;
-            post_transition_barrier.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-            post_transition_barrier.StateAfter = src_state.subresource_states[0];
+            if (state_transition_needed)
+            {
+                D3D12_RESOURCE_TRANSITION_BARRIER post_transition_barrier {};
+                post_transition_barrier.pResource = src_resource;
+                post_transition_barrier.Subresource = 0;
+                post_transition_barrier.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+                post_transition_barrier.StateAfter = src_state.subresource_states[0];
 
-            D3D12_RESOURCE_BARRIER post_resource_barrier {};
-            post_resource_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            post_resource_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-            post_resource_barrier.Transition = post_transition_barrier;
+                D3D12_RESOURCE_BARRIER post_resource_barrier {};
+                post_resource_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                post_resource_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+                post_resource_barrier.Transition = post_transition_barrier;
 
-            command_list->ResourceBarrier (1, &post_resource_barrier);
+                command_list->ResourceBarrier (1, &post_resource_barrier);
+            }
         }
     }
 
