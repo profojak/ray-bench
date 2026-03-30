@@ -21,15 +21,6 @@ import RayBench.Util;
 namespace raybench::capture
 {
 
-/// @brief State of 'ID3D12Resource'
-struct ResourceState
-{
-    ///< State of each subresource of 'ID3D12Resource'
-    std::vector<D3D12_RESOURCE_STATES> subresource_states;
-};
-
-// ============================================================================
-
 /// @brief Track virtual addresses of 'ID3D12Resource's for reverse lookup
 class VirtualAddressTracker
 {
@@ -144,6 +135,15 @@ class ResourceStateTracker
 
 public:
 
+    /// @brief State of 'ID3D12Resource'
+    struct ResourceState
+    {
+        ///< State of each subresource of 'ID3D12Resource'
+        std::vector<D3D12_RESOURCE_STATES> subresource_states;
+    };
+
+    // ========================================================================
+
     /// @brief Update the state of a resource
     void Update (ID3D12Resource* resource, const ResourceState& state)
     {
@@ -183,6 +183,19 @@ class PendingTransitionTracker
 
 public:
 
+    /// @brief Pending resource transition
+    struct PendingTransition
+    {
+        ///< Resource to transition
+        ID3D12Resource* resource;
+        ///< Subresource index, or all subresources
+        UINT subresource;
+        ///< Final state
+        D3D12_RESOURCE_STATES state_after;
+    };
+
+    // ========================================================================
+
     /// @brief Update the pending resource transitions of a command list with
     ///        new barriers
     ///
@@ -205,6 +218,24 @@ public:
                     .state_after = transition.StateAfter
                 });
             }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    /// @brief Get the pending resource transitions of a command list
+    ///
+    /// @param command_list Command list to get pending transitions for
+    /// @return Pointer to the vector of pending transitions
+    [[nodiscard]] const std::vector<PendingTransition>* Get (ID3D12GraphicsCommandList* command_list) const
+    {
+        if (auto it = pending_transitions_.find (command_list); it != pending_transitions_.end ())
+        {
+            return &it->second;
+        }
+        else
+        {
+            return nullptr;
         }
     }
 
@@ -263,17 +294,6 @@ public:
 private:
 
     // ========================================================================
-
-    /// @brief Pending resource transition
-    struct PendingTransition
-    {
-        ///< Resource to transition
-        ID3D12Resource* resource;     
-        ///< Subresource index, or all subresources
-        UINT subresource;
-        ///< Final state
-        D3D12_RESOURCE_STATES state_after;
-    };
 
     ///< Map of command list to its sequence of pending resource transitions
     std::unordered_map<ID3D12GraphicsCommandList*, std::vector<PendingTransition>> pending_transitions_;

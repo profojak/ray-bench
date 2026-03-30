@@ -27,5 +27,8 @@
     <ClCompile Include="resource.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="as.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

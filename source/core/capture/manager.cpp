@@ -248,15 +248,14 @@ public:
     /// @brief `ID3D12GraphicsCommandList::BuildRaytracingAccelerationStructure`
     ///        hook callback
     void Post_ID3D12GraphicsCommandList_BuildRaytracingAccelerationStructure (
-        ID3D12GraphicsCommandList4*,
-        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC*,
+        ID3D12GraphicsCommandList4* This,
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC* pDesc,
         std::shared_lock<APIMutex>&
     )
     {
         if (IsCaptureModeTrack ())
         {
-            // TODO: Track ray tracing acceleration structure builds for later
-            // use in frame capture.
+            tracker_.TrackASBuild (This, pDesc);
         }
     }
 
