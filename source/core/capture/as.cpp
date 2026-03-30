@@ -10,6 +10,7 @@ module;
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <dxgi.h>
+#include <nvapi/nvapi.h>
 
 #include "util/log.h"
 
@@ -42,6 +43,12 @@ public:
         D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs {};
         ///< Build inputs geometry descriptions
         std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometry_descs;
+        ///< NVAPI build inputs
+        NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX inputs_ex {};
+        ///< NVAPI build inputs geometry descriptions
+        std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX> geometry_descs_ex;
+        ///< Flag indicating if this is an NVAPI build
+        bool is_nvapi {false};
         ///< Size of the copyback buffer
         UINT64 copyback_size {0};
         ///< Copyback buffer resource

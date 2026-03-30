@@ -215,7 +215,7 @@ HRESULT WINAPI CreateCommandQueue1 (ID3D12Device9* This,
     return hr;
 }
 
-// ----------------------------------------------------------------------------
+// ============================================================================
 
 HRESULT WINAPI CreateCommittedResource (ID3D12Device* This,
                                         const D3D12_HEAP_PROPERTIES* pHeapProperties,

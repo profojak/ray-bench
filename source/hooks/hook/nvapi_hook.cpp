@@ -19,9 +19,11 @@ export module RayBench.Hook:NVAPI.Hook;
 import :NVAPI.Pfn;
 
 import std;
+import RayBench.Capture;
 import RayBench.Util;
 
 using namespace std::literals;
+using Manager = raybench::capture::Manager;
 using raybench::util::HookWrap;
 using raybench::util::UnhookWrap;
 
@@ -37,10 +39,24 @@ NvAPI_Status WINAPI Hooked_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx (
     ID3D12GraphicsCommandList4* pCommandList,
     const NVAPI_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_EX_PARAMS* pBuildParams)
 {
-    NvAPI_Status status = Original_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx (pCommandList, pBuildParams);
+    auto& manager = Manager::GetManager ();
+    
+    uint32_t call_depth = manager.CallDepthIncrement ();
+    if (call_depth > 1)
+    {
+        NvAPI_Status status = Original_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx (pCommandList, pBuildParams);
+        manager.CallDepthDecrement ();
+        return status;
+    }
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'NvAPI_D3D12_BuildRaytracingAccelerationStructureEx'");
 
+    std::shared_lock<Manager::APIMutex> lock = manager.GetSharedLock ();
+
+    NvAPI_Status status = Original_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx (pCommandList, pBuildParams);
+    manager.Post_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx (pCommandList, pBuildParams, lock);
+
+    manager.CallDepthDecrement ();
     return status;
 }
 

@@ -10,6 +10,7 @@ module;
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <dxgi.h>
+#include <nvapi/nvapi.h>
 
 #include "util/log.h"
 
@@ -256,6 +257,20 @@ public:
         if (IsCaptureModeTrack ())
         {
             tracker_.TrackASBuild (This, pDesc);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    void Post_NvAPI_D3D12_BuildRaytracingAccelerationStructureEx (
+        ID3D12GraphicsCommandList4* This,
+        const NVAPI_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_EX_PARAMS* pBuildParams,
+        std::shared_lock<APIMutex>&
+    )
+    {
+        if (IsCaptureModeTrack ())
+        {
+            tracker_.TrackASBuildEx (This, pBuildParams);
         }
     }
 
