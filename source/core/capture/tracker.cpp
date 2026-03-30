@@ -307,33 +307,9 @@ public:
             }
 
             ResourceStateTracker::ResourceState src_state;
-            bool src_state_initialized = false;
 
-            // Check if there are any pending state transitions for resource on
-            // this command list
-            auto pending_transition = pending_transition_tracker_.Get (command_list);
-            if (pending_transition != nullptr)
             {
-                auto pending_it = std::find_if (pending_transition->begin (), pending_transition->end (),
-                                                [src_resource] (const PendingTransitionTracker::PendingTransition& transition)
-                                                {
-                                                    return transition.resource == src_resource;
-                                                });
-                if (pending_it != pending_transition->end ())
-                {
-                    src_state.subresource_states.resize (pending_transition->size ());
-                    for (size_t i = 0; i < pending_transition->size (); ++i)
-                    {
-                        src_state.subresource_states[i] = pending_it->state_after;
-                    }
-                    src_state_initialized = true;
-                }
-            }
-
-            // If there are no pending transitions, retrieve the current state
-            // from the global resource state tracker
-            if (src_state_initialized == false)
-            {
+                std::scoped_lock lock (state_mutex_);
                 auto src_state_opt = resource_state_tracker_.Get (src_resource);
                 if (src_state_opt.has_value () == false)
                 {
@@ -341,9 +317,29 @@ public:
                     ++entry_it;
                     continue;
                 }
-                else
+                src_state = src_state_opt.value ();
+
+                // Check if there are any pending state transitions for resource
+                // on this command list and update the state if so
+                if (const auto* transitions = pending_transition_tracker_.Get (command_list))
                 {
-                    src_state = src_state_opt.value ();
+                    for (const auto& transition : *transitions)
+                    {
+                        if (transition.resource == src_resource)
+                        {
+                            if (transition.subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+                            {
+                                for (auto& state : src_state.subresource_states)
+                                {
+                                    state = transition.state_after;
+                                }
+                            }
+                            else if (transition.subresource < src_state.subresource_states.size ())
+                            {
+                                src_state.subresource_states[transition.subresource] = transition.state_after;
+                            }
+                        }
+                    }
                 }
             }
 
