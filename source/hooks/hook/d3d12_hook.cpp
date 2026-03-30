@@ -171,7 +171,7 @@ void WINAPI ExecuteCommandLists (ID3D12CommandQueue* This, UINT NumCommandLists,
     std::shared_lock<Manager::APIMutex> lock = Manager::GetSharedLock ();
 
     Original_ID3D12CommandQueue::ExecuteCommandLists (This, NumCommandLists, ppCommandLists);
-    manager.Post_ID3D12CommandQueue_ExecuteCommandLists (NumCommandLists, ppCommandLists, lock);
+    manager.Post_ID3D12CommandQueue_ExecuteCommandLists (This, NumCommandLists, ppCommandLists, lock);
 
     manager.CallDepthDecrement ();
 }

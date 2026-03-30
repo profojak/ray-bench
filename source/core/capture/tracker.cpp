@@ -404,6 +404,11 @@ public:
                 command_list->ResourceBarrier (1, &post_resource_barrier);
             }
         }
+
+        {
+            std::scoped_lock lock (state_mutex_);
+            as_tracker_.Add (command_list, as_build);
+        }
     }
 
     // ========================================================================
@@ -411,17 +416,19 @@ public:
     /// @brief Track execution of command lists and commit their pending
     ///        resource transitions to the resource state tracker
     ///
-    /// @param num_command_lists Number of command lists being executed
+    /// @param This Command queue executing the command lists
+    /// @param NumCommandLists Number of command lists being executed
     /// @param pp_command_lists Pointer to the command lists being executed
-    void TrackExecuteCommandLists (UINT num_command_lists, ID3D12CommandList* const* pp_command_lists)
+    void TrackExecuteCommandLists (ID3D12CommandQueue* This, UINT NumCommandLists, ID3D12CommandList* const* ppCommandLists)
     {
         std::unique_lock lock (state_mutex_);
-        for (UINT i = 0; i < num_command_lists; ++i)
+        for (UINT i = 0; i < NumCommandLists; ++i)
         {
             ID3D12GraphicsCommandList* command_list = nullptr;
-            if (SUCCEEDED (pp_command_lists[i]->QueryInterface (IID_PPV_ARGS (&command_list))))
+            if (SUCCEEDED (ppCommandLists[i]->QueryInterface (IID_PPV_ARGS (&command_list))))
             {
                 pending_transition_tracker_.Commit (command_list, resource_state_tracker_);
+                as_tracker_.Commit (This, command_list);
                 command_list->Release ();
             }
         }

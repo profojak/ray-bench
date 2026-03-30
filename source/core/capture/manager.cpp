@@ -261,13 +261,14 @@ public:
 
     // ========================================================================
 
-    void Post_ID3D12CommandQueue_ExecuteCommandLists (UINT NumCommandLists,
+    void Post_ID3D12CommandQueue_ExecuteCommandLists (ID3D12CommandQueue* This,
+                                                      UINT NumCommandLists,
                                                       ID3D12CommandList* const* ppCommandLists,
                                                       std::shared_lock<APIMutex>&)
     {
         if (IsCaptureModeTrack ())
         {
-            tracker_.TrackExecuteCommandLists (NumCommandLists, ppCommandLists);
+            tracker_.TrackExecuteCommandLists (This, NumCommandLists, ppCommandLists);
         }
     }
 
