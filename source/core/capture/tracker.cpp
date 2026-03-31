@@ -247,7 +247,7 @@ public:
                 device->Release ();
                 return;
             }
-            else if (build_info.inputs.descsLayout > 0 && build_info.inputs.instanceDescs != 0)
+            else if (build_info.inputs.numDescs > 0 && build_info.inputs.instanceDescs != 0)
             {
                 inputs_size = build_info.inputs.numDescs * sizeof (D3D12_RAYTRACING_INSTANCE_DESC);
                 inputs_entries.emplace_back (
@@ -392,9 +392,16 @@ public:
     /// @param pp_command_lists Pointer to the command lists being executed
     void TrackExecuteCommandLists (ID3D12CommandQueue* This, UINT NumCommandLists, ID3D12CommandList* const* ppCommandLists)
     {
-        (void) This;
-        (void) NumCommandLists;
-        (void) ppCommandLists;
+        std::unique_lock lock (state_mutex_);
+        for (UINT i = 0; i < NumCommandLists; ++i)
+        {
+            ID3D12GraphicsCommandList* command_list = nullptr;
+            if (SUCCEEDED (ppCommandLists[i]->QueryInterface (IID_PPV_ARGS (&command_list))))
+            {
+                as_tracker_.Commit (This, command_list);
+                command_list->Release ();
+            }
+        }
     }
 
 private:
