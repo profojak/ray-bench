@@ -270,7 +270,7 @@ public:
     {
         if (IsCaptureModeTrack ())
         {
-            tracker_.TrackASBuildEx (This, pBuildParams);
+            tracker_.TrackASBuild (This, pBuildParams);
         }
     }
 
