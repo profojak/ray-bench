@@ -60,9 +60,15 @@ public:
         ///< Associated resource
         ID3D12Resource* dest_resource {nullptr};
         ///< Build inputs
-        NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX inputs;
+        std::variant<
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS,
+            NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX
+        > inputs;
         ///< Build inputs geometry descriptions
-        std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX> geometry_descs;
+        std::variant<
+            std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>,
+            std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX>
+        > geometry_descs;
         ///< Size of the copyback buffer
         UINT64 copyback_size {0};
         ///< Copyback buffer resource
@@ -180,7 +186,6 @@ public:
                            }
                            return false;
                        });
-
     }
 
 private:

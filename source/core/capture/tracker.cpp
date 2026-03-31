@@ -155,28 +155,32 @@ public:
         build_info.dest_resource = resource;
         build_info.inputs = pBuildParams->pDesc->inputs;
 
-        if (build_info.inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
+        auto& inputs = std::get<NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX> (build_info.inputs);
+
+        if (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
         {
-            for (UINT i = 0; i < build_info.inputs.numDescs; ++i)
+            auto& geometry_descs = build_info.geometry_descs.emplace<std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX>> ();
+            for (UINT i = 0; i < inputs.numDescs; ++i)
             {
-                build_info.geometry_descs.push_back (build_info.inputs.descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY
-                                                     ? build_info.inputs.pGeometryDescs[i] : *build_info.inputs.ppGeometryDescs[i]);
+                geometry_descs.push_back (inputs.descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY
+                                          ? inputs.pGeometryDescs[i] : *inputs.ppGeometryDescs[i]);
             }
 
             // Clear pointers to avoid referencing invalid memory
-            build_info.inputs.pGeometryDescs = nullptr;
-            build_info.inputs.ppGeometryDescs = nullptr;
+            inputs.pGeometryDescs = nullptr;
+            inputs.ppGeometryDescs = nullptr;
         }
 
         // Store build inputs for later retrieval during command list execution
         UINT64 inputs_size = 0;
         std::vector<AccelerationStructureTracker::InputsEntry> inputs_entries;
 
-        if (build_info.inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
+        if (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
         {
-            for (UINT i = 0; i < build_info.inputs.numDescs; ++i)
+            auto& geometry_descs = std::get<std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX>> (build_info.geometry_descs);
+            for (UINT i = 0; i < inputs.numDescs; ++i)
             {
-                const NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX& desc = build_info.geometry_descs[i];
+                const NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX& desc = geometry_descs[i];
                 if (desc.type == NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES_EX)
                 {
                     const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC& triangles_desc = desc.triangles;
@@ -239,20 +243,20 @@ public:
                 }
             }
         }
-        else if (build_info.inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
+        else if (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
         {
-            if (build_info.inputs.descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS)
+            if (inputs.descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS)
             {
                 RAYBENCH_LOG_WARNING_ONCE ("TLAS with array of pointers is not yet supported!");
                 device->Release ();
                 return;
             }
-            else if (build_info.inputs.numDescs > 0 && build_info.inputs.instanceDescs != 0)
+            else if (inputs.numDescs > 0 && inputs.instanceDescs != 0)
             {
-                inputs_size = build_info.inputs.numDescs * sizeof (D3D12_RAYTRACING_INSTANCE_DESC);
+                inputs_size = inputs.numDescs * sizeof (D3D12_RAYTRACING_INSTANCE_DESC);
                 inputs_entries.emplace_back (
                     AccelerationStructureTracker::InputsEntry {
-                        &build_info.inputs.instanceDescs,
+                        &inputs.instanceDescs,
                         inputs_size,
                         0
                     });
@@ -260,7 +264,7 @@ public:
         }
         else
         {
-            RAYBENCH_LOG_ERROR ("Unsupported acceleration structure type: {}!", static_cast<int>(build_info.inputs.type));
+            RAYBENCH_LOG_ERROR ("Unsupported acceleration structure type: {}!", static_cast<int>(inputs.type));
             device->Release ();
             return;
         }
