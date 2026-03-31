@@ -148,44 +148,35 @@ public:
 
         // Store acceleration structure build information for later retrieval
         // during command list execution
-        D3D12_GPU_VIRTUAL_ADDRESS dest_addr = pBuildParams->pDesc->destAccelerationStructureData;
-        UINT64 dest_size = prebuild_info.ResultDataMaxSizeInBytes;
-        ID3D12Resource* dest_resource = resource;
-        NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX inputs = pBuildParams->pDesc->inputs;
+        AccelerationStructureTracker::BuildInfo build_info {};
+        build_info.api = AccelerationStructureTracker::BuildInfo::API::NVAPI;
+        build_info.dest_addr = pBuildParams->pDesc->destAccelerationStructureData;
+        build_info.dest_size = prebuild_info.ResultDataMaxSizeInBytes;
+        build_info.dest_resource = resource;
+        build_info.inputs = pBuildParams->pDesc->inputs;
 
-        std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX> geometry_desc;
-        if (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
+        if (build_info.inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
         {
-            for (UINT i = 0; i < inputs.numDescs; ++i)
+            for (UINT i = 0; i < build_info.inputs.numDescs; ++i)
             {
-                geometry_desc.push_back (inputs.descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY
-                                         ? inputs.pGeometryDescs[i] : *inputs.ppGeometryDescs[i]);
+                build_info.geometry_descs.push_back (build_info.inputs.descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY
+                                                     ? build_info.inputs.pGeometryDescs[i] : *build_info.inputs.ppGeometryDescs[i]);
             }
 
             // Clear pointers to avoid referencing invalid memory
-            inputs.pGeometryDescs = nullptr;
-            inputs.ppGeometryDescs = nullptr;
+            build_info.inputs.pGeometryDescs = nullptr;
+            build_info.inputs.ppGeometryDescs = nullptr;
         }
-
-        struct InputsEntry
-        {
-            ///< GPU virtual address of the inputs buffer
-            const D3D12_GPU_VIRTUAL_ADDRESS* src_addr {nullptr};
-            ///< Size of the inputs entry in the inputs buffer
-            UINT64 size {0};
-            ///< Offset of the inputs entry in the inputs buffer
-            UINT64 offset {0};
-        };
 
         // Store build inputs for later retrieval during command list execution
         UINT64 inputs_size = 0;
-        std::vector<InputsEntry> inputs_entries;
+        std::vector<AccelerationStructureTracker::InputsEntry> inputs_entries;
 
-        if (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
+        if (build_info.inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
         {
-            for (UINT i = 0; i < inputs.numDescs; ++i)
+            for (UINT i = 0; i < build_info.inputs.numDescs; ++i)
             {
-                const NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX& desc = geometry_desc[i];
+                const NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX& desc = build_info.geometry_descs[i];
                 if (desc.type == NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES_EX)
                 {
                     const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC& triangles_desc = desc.triangles;
@@ -196,7 +187,7 @@ public:
                         constexpr UINT64 transform_size = 12 * sizeof (float);
                         inputs_size = raybench::util::AlignValue<D3D12_RAYTRACING_TRANSFORM3X4_BYTE_ALIGNMENT> (inputs_size);
                         inputs_entries.emplace_back (
-                            InputsEntry {
+                            AccelerationStructureTracker::InputsEntry {
                             &triangles_desc.Transform3x4,
                             transform_size,
                             inputs_size
@@ -224,7 +215,7 @@ public:
                         }
                         const UINT index_buffer_size = triangles_desc.IndexCount * index_size;
                         inputs_entries.emplace_back (
-                            InputsEntry {
+                            AccelerationStructureTracker::InputsEntry {
                             &triangles_desc.IndexBuffer,
                             index_buffer_size,
                             inputs_size
@@ -238,7 +229,7 @@ public:
                         UINT64 vertex_size = triangles_desc.VertexCount * triangles_desc.VertexBuffer.StrideInBytes;
                         inputs_size = raybench::util::AlignValue<4> (inputs_size);
                         inputs_entries.emplace_back (
-                            InputsEntry {
+                            AccelerationStructureTracker::InputsEntry {
                             &triangles_desc.VertexBuffer.StartAddress,
                             vertex_size,
                             inputs_size
@@ -248,20 +239,20 @@ public:
                 }
             }
         }
-        else if (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
+        else if (build_info.inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
         {
-            if (inputs.descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS)
+            if (build_info.inputs.descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS)
             {
                 RAYBENCH_LOG_WARNING_ONCE ("TLAS with array of pointers is not yet supported!");
                 device->Release ();
                 return;
             }
-            else if (inputs.numDescs > 0 && inputs.instanceDescs != 0)
+            else if (build_info.inputs.descsLayout > 0 && build_info.inputs.instanceDescs != 0)
             {
-                inputs_size = inputs.numDescs * sizeof (D3D12_RAYTRACING_INSTANCE_DESC);
+                inputs_size = build_info.inputs.numDescs * sizeof (D3D12_RAYTRACING_INSTANCE_DESC);
                 inputs_entries.emplace_back (
-                    InputsEntry {
-                        &inputs.instanceDescs,
+                    AccelerationStructureTracker::InputsEntry {
+                        &build_info.inputs.instanceDescs,
                         inputs_size,
                         0
                     });
@@ -269,7 +260,7 @@ public:
         }
         else
         {
-            RAYBENCH_LOG_ERROR ("Unsupported acceleration structure type: {}!", static_cast<int>(inputs.type));
+            RAYBENCH_LOG_ERROR ("Unsupported acceleration structure type: {}!", static_cast<int>(build_info.inputs.type));
             device->Release ();
             return;
         }
@@ -280,12 +271,14 @@ public:
             return;
         }
 
+        build_info.copyback_size = inputs_size;
+
         // Create copyback buffer for build inputs to be retrieved during
         // command list execution.  Sort entries by destination address to
         // optimize retrieval during command list execution
         std::sort (inputs_entries.begin (), inputs_entries.end (), [] (
-            const InputsEntry& a,
-            const InputsEntry& b)
+            const AccelerationStructureTracker::InputsEntry& a,
+            const AccelerationStructureTracker::InputsEntry& b)
             {
                 if (a.src_addr == nullptr || b.src_addr == nullptr)
                 {
@@ -328,6 +321,7 @@ public:
             device->Release ();
             return;
         }
+        build_info.copyback_resource = copyback_resource;
 
         // Stage build inputs copies to copyback buffer to be executed during
         // command list execution
@@ -380,9 +374,10 @@ public:
             }
         }
 
-        (void) dest_addr;
-        (void) dest_size;
-        (void) dest_resource;
+        {
+            std::scoped_lock lock (state_mutex_);
+            as_tracker_.Add (command_list, build_info);
+        }
 
         device->Release ();
     }
