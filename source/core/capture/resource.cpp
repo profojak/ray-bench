@@ -1,6 +1,6 @@
 // ============================================================================
 
-/// @brief 'ID3D12Resource' state trackers and related utilities
+/// @brief Resource state tracker
 
 module;
 
@@ -21,7 +21,7 @@ import RayBench.Util;
 namespace raybench::capture
 {
 
-/// @brief Track virtual addresses of 'ID3D12Resource's for reverse lookup
+/// @brief Track virtual addresses of resources for reverse lookup
 class VirtualAddressTracker
 {
 public:
@@ -33,14 +33,15 @@ public:
     /// @param addr GPU virtual address
     void Add (ID3D12Resource* resource, D3D12_GPU_VIRTUAL_ADDRESS addr)
     {
-        if (resource == nullptr || resource->GetDesc ().Width == 0 || addr == 0)
+        const UINT64 resource_size = resource ? resource->GetDesc ().Width : 0;
+        if (resource_size == 0 || addr == 0)
         {
             return;
         }
 
         auto& aliased_map = virtual_address_map_[addr];
         auto& end_addr = aliased_map[resource];
-        end_addr = addr + resource->GetDesc ().Width;
+        end_addr = addr + resource_size;
     }
 
     // ------------------------------------------------------------------------
@@ -118,8 +119,8 @@ private:
             }
         }
 
-            return nullptr;
-        }
+        return nullptr;
+    }
 };
 
 }
