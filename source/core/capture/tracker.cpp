@@ -347,6 +347,11 @@ public:
                 }
             }
 
+            // Compute the source address range to batch copies from the same
+            // resource without redundant lookups
+            const D3D12_GPU_VIRTUAL_ADDRESS src_start = src_resource->GetGPUVirtualAddress ();
+            const D3D12_GPU_VIRTUAL_ADDRESS src_end = src_start + src_resource->GetDesc ().Width;
+
             while (entry_it != inputs_entries.end ())
             {
                 if (entry_it->src_addr == nullptr || *entry_it->src_addr == 0)
@@ -355,21 +360,16 @@ public:
                     continue;
                 }
 
-                ID3D12Resource* current_src_resource = nullptr;
+                // Check if entry falls within the current source address range
+                const D3D12_GPU_VIRTUAL_ADDRESS entry_addr = *entry_it->src_addr;
+                const D3D12_GPU_VIRTUAL_ADDRESS entry_end = entry_addr + entry_it->size;
+                if (entry_addr < src_start || entry_end > src_end)
                 {
-                    std::scoped_lock lock (state_mutex_);
-                    current_src_resource = virtual_address_tracker_.Get (*entry_it->src_addr, entry_it->size);
-                    if (current_src_resource == nullptr || current_src_resource != src_resource)
-                    {
-                        break;
-                    }
+                    break;
                 }
 
-                auto addr = *entry_it->src_addr;
-                auto offset = entry_it->offset;
-                auto size = entry_it->size;
-                auto src_offset = addr - src_resource->GetGPUVirtualAddress ();
-                command_list->CopyBufferRegion (copyback_resource, offset, src_resource, src_offset, size);
+                command_list->CopyBufferRegion (copyback_resource, entry_it->offset,
+                                                src_resource, entry_addr - src_start, entry_it->size);
                 ++entry_it;
             }
         }
