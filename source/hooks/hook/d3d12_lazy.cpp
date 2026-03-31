@@ -71,12 +71,29 @@ bool Hooked_ID3D12Resource::LazyHook (void** ppDevice)
 
             bool result = HookWrap (Original_ID3D12Resource::GetGPUVirtualAddress, GetGPUVirtualAddress,
                                     "ID3D12Resource::GetGPUVirtualAddress"sv);
-            resource->Release ();
             if (result == false)
             {
+                resource->Release ();
                 return false;
             }
         }
+
+        if (Original_ID3D12Resource::Release == nullptr)
+        {
+            void** vtable = *reinterpret_cast<void***> (resource);
+            Original_ID3D12Resource::Release = reinterpret_cast<Original_ID3D12Resource::pfn_Release> (
+                vtable[static_cast<int>(ID3D12Object_VTable_ID::Release)]);
+
+            bool result = HookWrap (Original_ID3D12Resource::Release, Release,
+                                    "ID3D12Resource::Release"sv);
+            if (result == false)
+            {
+                resource->Release ();
+                return false;
+            }
+        }
+
+        resource->Release ();
     }
     else
     {

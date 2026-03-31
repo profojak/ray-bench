@@ -83,6 +83,26 @@ public:
         return nullptr;
     }
 
+    // ------------------------------------------------------------------------
+
+    /// @brief Remove a resource from the virtual address map
+    ///
+    /// @param resource Resource to remove from the virtual address map
+    /// @param addr GPU virtual address associated with the resource
+    void Remove (ID3D12Resource* resource, D3D12_GPU_VIRTUAL_ADDRESS addr)
+    {
+        auto it = virtual_address_map_.find (addr);
+        if (it != virtual_address_map_.end ())
+        {
+            auto& aliased_map = it->second;
+            aliased_map.erase (resource);
+            if (aliased_map.empty ())
+            {
+                virtual_address_map_.erase (it);
+            }
+        }
+    }
+
 private:
 
     // ========================================================================

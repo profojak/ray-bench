@@ -58,6 +58,35 @@ D3D12_GPU_VIRTUAL_ADDRESS WINAPI GetGPUVirtualAddress (ID3D12Resource* This)
     return result;
 }
 
+// ----------------------------------------------------------------------------
+
+ULONG WINAPI Release (ID3D12Resource* This)
+{
+    auto& manager = Manager::GetManager ();
+
+    uint32_t call_depth = manager.CallDepthIncrement ();
+    if (call_depth > 1)
+    {
+        ULONG result = Original_ID3D12Resource::Release (This);
+        manager.CallDepthDecrement ();
+        return result;
+    }
+
+    RAYBENCH_LOG_TRACE_ONCE ("Hooked 'ID3D12Resource::Release'");
+
+    // Try to get GPU virtual address of the resource being released
+    D3D12_GPU_VIRTUAL_ADDRESS addr = Original_ID3D12Resource::GetGPUVirtualAddress (This);
+    ULONG result = Original_ID3D12Resource::Release (This);
+
+    if (addr != 0 && result == 0)
+    {
+        manager.Post_ID3D12Resource_Release (This, addr);
+    }
+
+    manager.CallDepthDecrement ();
+    return result;
+}
+
 }
 
 // ============================================================================

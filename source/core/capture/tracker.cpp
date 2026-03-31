@@ -29,6 +29,19 @@ export class Tracker
 {
 public:
 
+    /// @brief Track the release of 'ID3D12Resource' and remove its GPU virtual
+    ///        address
+    ///
+    /// @param This Resource being released
+    /// @param addr GPU virtual address associated with resource being released
+    void TrackRelease (ID3D12Resource* This, D3D12_GPU_VIRTUAL_ADDRESS addr)
+    {
+        std::unique_lock lock (state_mutex_);
+        virtual_address_tracker_.Remove (This, addr);
+    }
+
+    // ========================================================================
+
     /// @brief Track GPU virtual address associated with resource for reverse
     ///        lookup
     ///

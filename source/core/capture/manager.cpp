@@ -192,6 +192,17 @@ public:
 
     // ========================================================================
 
+    /// @brief `ID3D12Resource::Release` hook callback
+    void Post_ID3D12Resource_Release (ID3D12Resource* This, D3D12_GPU_VIRTUAL_ADDRESS addr)
+    {
+        if (IsCaptureModeTrack ())
+        {
+            tracker_.TrackRelease (This, addr);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
     /// @brief `ID3D12Resource::GetGPUVirtualAddress` hook callback
     void Post_ID3D12Resource_GetGPUVirtualAddress (ID3D12Resource* This,
                                                    D3D12_GPU_VIRTUAL_ADDRESS addr)
