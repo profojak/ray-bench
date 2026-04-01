@@ -25,6 +25,8 @@ namespace raybench::capture
 /// @brief Acceleration structure tracker
 export class AccelerationStructureTracker
 {
+    friend class Writer;
+
 public:
 
     ///< Type alias for timestamp to track acceleration structure builds

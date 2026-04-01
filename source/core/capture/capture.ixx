@@ -8,5 +8,6 @@ export import :AS;
 export import :Manager;
 export import :Resource;
 export import :Tracker;
+export import :Writer;
 
 // ----------------------------------------------------------------------------

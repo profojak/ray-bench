@@ -27,6 +27,8 @@ namespace raybench::capture
 /// @brief State tracker
 export class Tracker
 {
+    friend class Writer;
+
 public:
 
     /// @brief Track the release of 'ID3D12Resource' and remove its GPU virtual
@@ -52,6 +54,32 @@ public:
         std::unique_lock lock (state_mutex_);
         virtual_address_tracker_.Add (resource, addr);
     }
+
+    // ========================================================================
+
+    /// @brief Track the creation of 'IDXGISwapChain' for potential future
+    ///        capture of state using this swap chain's command queue
+    ///
+    /// @param pDevice Command queue (guaranteed in DirectX 12)
+    /// @param ppSwapChain Created swap chain
+    void TrackSwapChain (IUnknown* pDevice, IDXGISwapChain** ppSwapChain)
+    {
+        ID3D12CommandQueue* command_queue = nullptr;
+        HRESULT hr = pDevice->QueryInterface (IID_PPV_ARGS (&command_queue));
+        if (FAILED (hr))
+        {
+            RAYBENCH_LOG_ERROR ("Failed to query command queue from swap chain device: 0x{:08X}!", hr);
+            return;
+        }
+
+        {
+            std::unique_lock lock (state_mutex_);
+            swap_chain_command_queue_map_[*ppSwapChain] = command_queue;
+        }
+    }
+
+    // TODO: Proper tracker!
+    std::unordered_map<IDXGISwapChain*, ID3D12CommandQueue*> swap_chain_command_queue_map_;
 
     // ========================================================================
 

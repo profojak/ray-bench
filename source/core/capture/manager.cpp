@@ -18,6 +18,7 @@ export module RayBench.Capture:Manager;
 
 import std;
 import :Tracker;
+import :Writer;
 import RayBench.Util;
 
 namespace raybench::capture
@@ -224,7 +225,7 @@ public:
     // ------------------------------------------------------------------------
 
     /// @brief `IDXGISwapChain::Present` hook callback
-    void Post_IDXGISwapChain_Present (UINT flags, std::shared_lock<APIMutex>& lock)
+    void Post_IDXGISwapChain_Present (UINT flags, IDXGISwapChain* This, std::shared_lock<APIMutex>& lock)
     {
         if (flags & DXGI_PRESENT_TEST)
         {
@@ -234,10 +235,48 @@ public:
         if (IsCaptureModeWrite ())
         {
             DeactivateCapture (lock);
+            writer_.WriteCapture (tracker_, This);
         }
         else if (IsCaptureModeTrack ())
         {
             ActivateCapture (lock);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    /// @brief `IDXGISwapChain::Present` hook callback
+    void Post_IDXGISwapChain_Present (UINT flags, IDXGISwapChain1* This, std::shared_lock<APIMutex>& lock)
+    {
+        IDXGISwapChain* swap_chain = nullptr;
+        if (SUCCEEDED (This->QueryInterface (IID_PPV_ARGS (&swap_chain))) && swap_chain != nullptr)
+        {
+            Post_IDXGISwapChain_Present (flags, swap_chain, lock);
+            swap_chain->Release ();
+        }
+    }
+
+    // ========================================================================
+
+    /// @brief 'IDXGIFactory::CreateSwapChain' hook callback
+    void Post_IDXGIFactory_CreateSwapChain (IUnknown* pDevice, IDXGISwapChain** ppSwapChain, HRESULT hr)
+    {
+        if (SUCCEEDED (hr) && ppSwapChain != nullptr && *ppSwapChain != nullptr)
+        {
+            tracker_.TrackSwapChain (pDevice, ppSwapChain);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    /// @brief 'IDXGIFactory::CreateSwapChain' hook callback
+    void Post_IDXGIFactory_CreateSwapChain (IUnknown* pDevice, IDXGISwapChain1** ppSwapChain, HRESULT hr)
+    {
+        IDXGISwapChain* swap_chain = nullptr;
+        if (SUCCEEDED ((*ppSwapChain)->QueryInterface (IID_PPV_ARGS (&swap_chain))) && swap_chain != nullptr)
+        {
+            Post_IDXGIFactory_CreateSwapChain (pDevice, &swap_chain, hr);
+            swap_chain->Release ();
         }
     }
 
@@ -331,6 +370,8 @@ private:
 
     ///< State tracker
     Tracker tracker_;
+    ///< State writer
+    Writer writer_;
 };
 
 Manager::APIMutex Manager::api_call_mutex_;

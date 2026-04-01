@@ -56,7 +56,7 @@ HRESULT WINAPI Present (IDXGISwapChain* This, UINT SyncInterval, UINT Flags)
 
     manager.Pre_IDXGISwapChain_Present ();
     HRESULT hr = Original_IDXGISwapChain::Present (This, SyncInterval, Flags);
-    manager.Post_IDXGISwapChain_Present (Flags, lock);
+    manager.Post_IDXGISwapChain_Present (Flags, This, lock);
 
     manager.CallDepthDecrement ();
     return hr;
@@ -85,7 +85,7 @@ HRESULT WINAPI Present1 (IDXGISwapChain1* This,
 
     manager.Pre_IDXGISwapChain_Present ();
     HRESULT hr = Original_IDXGISwapChain::Present1 (This, SyncInterval, PresentFlags, pPresentParameters);
-    manager.Post_IDXGISwapChain_Present (PresentFlags, lock);
+    manager.Post_IDXGISwapChain_Present (PresentFlags, This, lock);
 
     manager.CallDepthDecrement ();
     return hr;
@@ -104,12 +104,24 @@ HRESULT WINAPI CreateSwapChain (IDXGIFactory* This,
                                 DXGI_SWAP_CHAIN_DESC* pDesc,
                                 IDXGISwapChain** ppSwapChain)
 {
-    HRESULT hr = Original_IDXGIFactory::CreateSwapChain (This, pDevice, pDesc, ppSwapChain);
+    auto& manager = Manager::GetManager ();
+
+    uint32_t call_depth = manager.CallDepthIncrement ();
+    if (call_depth > 1)
+    {
+        HRESULT hr = Original_IDXGIFactory::CreateSwapChain (This, pDevice, pDesc, ppSwapChain);
+        manager.CallDepthDecrement ();
+        return hr;
+    }
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGIFactory::CreateSwapChain'");
 
+    HRESULT hr = Original_IDXGIFactory::CreateSwapChain (This, pDevice, pDesc, ppSwapChain);
+    manager.Post_IDXGIFactory_CreateSwapChain (pDevice, ppSwapChain, hr);
+
     RAYBENCH_LAZY_HOOK (SUCCEEDED (hr), Hooked_IDXGISwapChain, ppSwapChain);
 
+    manager.CallDepthDecrement ();
     return hr;
 }
 
@@ -123,13 +135,26 @@ HRESULT WINAPI CreateSwapChainForHwnd (IDXGIFactory2* This,
                                        IDXGIOutput* pRestrictToOutput,
                                        IDXGISwapChain1** ppSwapChain)
 {
-    HRESULT hr = Original_IDXGIFactory::CreateSwapChainForHwnd (This, pDevice, hWnd, pDesc, pFullscreenDesc,
-                                                                pRestrictToOutput, ppSwapChain);
+    auto& manager = Manager::GetManager ();
+
+    uint32_t call_depth = manager.CallDepthIncrement ();
+    if (call_depth > 1)
+    {
+        HRESULT hr = Original_IDXGIFactory::CreateSwapChainForHwnd (This, pDevice, hWnd, pDesc, pFullscreenDesc,
+                                                                    pRestrictToOutput, ppSwapChain);
+        manager.CallDepthDecrement ();
+        return hr;
+    }
 
     RAYBENCH_LOG_TRACE_ONCE ("Hooked 'IDXGIFactory::CreateSwapChainForHwnd'");
 
+    HRESULT hr = Original_IDXGIFactory::CreateSwapChainForHwnd (This, pDevice, hWnd, pDesc, pFullscreenDesc,
+                                                                pRestrictToOutput, ppSwapChain);
+    manager.Post_IDXGIFactory_CreateSwapChain (pDevice, ppSwapChain, hr);
+
     RAYBENCH_LAZY_HOOK (SUCCEEDED (hr), Hooked_IDXGISwapChain, ppSwapChain);
 
+    manager.CallDepthDecrement ();
     return hr;
 }
 
