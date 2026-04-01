@@ -46,13 +46,6 @@ public:
     /// @brief Acceleration structure build information
     struct BuildInfo
     {
-        /// @brief API used for the build
-        enum class API : uint8_t
-        {
-            D3D12,
-            NVAPI
-        } api {API::D3D12};
-
         ///< GPU virtual address of the destination memory
         D3D12_GPU_VIRTUAL_ADDRESS dest_addr {0};
         ///< Size of the destination memory
@@ -75,6 +68,280 @@ public:
         ID3D12Resource* copyback_resource {nullptr};
         ///< Timestamp of the build to associate it with command list execution
         TimeStamp timestamp {0};
+
+        // ====================================================================
+
+        /// @brief Get maximum estimated size of the acceleration structure
+        ///
+        /// @param device Device to query prebuild info from
+        /// @return Maximum estimated size of the acceleration structure
+        UINT64 GetMaximumSizeAS (ID3D12Device5* device) const
+        {
+            return std::visit ([&] (const auto& inputs) -> UINT64
+                               {
+                                   using InputsType = std::decay_t<decltype (inputs)>;
+
+                                   // DirectX 12
+                                   if constexpr (std::is_same_v<InputsType, D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS>)
+                                   {
+                                       D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info = {};
+                                       device->GetRaytracingAccelerationStructurePrebuildInfo (&inputs, &prebuild_info);
+                                       return prebuild_info.ResultDataMaxSizeInBytes;
+                                   }
+
+                                   // NVAPI
+                                   else if constexpr (std::is_same_v<InputsType, NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX>)
+                                   {
+                                       D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info = {};
+                                       NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS prebuild_info_params {};
+                                       prebuild_info_params.version = NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS_VER;
+                                       prebuild_info_params.pDesc = &inputs;
+                                       prebuild_info_params.pInfo = &prebuild_info;
+                                       NvAPI_Status status = NvAPI_D3D12_GetRaytracingAccelerationStructurePrebuildInfoEx (device, &prebuild_info_params);
+                                       if (status != NVAPI_OK)
+                                       {
+                                           return 0;
+                                       }
+                                       return prebuild_info.ResultDataMaxSizeInBytes;
+                                   }
+                               }, this->inputs);
+        }
+
+        // --------------------------------------------------------------------
+
+        /// @brief Copy geometry descriptions from build inputs
+        ///
+        /// @param resource Destination resource
+        void CopyGeometryDescs (ID3D12Resource* resource)
+        {
+            dest_resource = resource;
+            std::visit ([this] (auto& inputs) -> void
+                        {
+                            using InputsType = std::decay_t<decltype (inputs)>;
+
+                            // DirectX 12
+                            if constexpr (std::is_same_v<InputsType, D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS>)
+                            {
+                                if (inputs.Type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
+                                {
+                                    auto& descs = geometry_descs.emplace<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>> ();
+                                    for (UINT i = 0; i < inputs.NumDescs; ++i)
+                                    {
+                                        descs.push_back (inputs.DescsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY
+                                                         ? inputs.pGeometryDescs[i] : *inputs.ppGeometryDescs[i]);
+                                    }
+
+                                    // Clear pointers to avoid referencing invalid memory
+                                    inputs.pGeometryDescs = nullptr;
+                                    inputs.ppGeometryDescs = nullptr;
+                                }
+                            }
+
+                            // NVAPI
+                            else if constexpr (std::is_same_v<InputsType, NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX>)
+                            {
+                                if (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
+                                {
+                                    auto& descs = geometry_descs.emplace<std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX>> ();
+                                    for (UINT i = 0; i < inputs.numDescs; ++i)
+                                    {
+                                        descs.push_back (inputs.descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY
+                                                         ? inputs.pGeometryDescs[i] : *inputs.ppGeometryDescs[i]);
+                                    }
+
+                                    // Clear pointers to avoid referencing invalid memory
+                                    inputs.pGeometryDescs = nullptr;
+                                    inputs.ppGeometryDescs = nullptr;
+                                }
+                            }
+                        }, this->inputs);
+        }
+
+        // --------------------------------------------------------------------
+
+        /// @brief Copy build inputs
+        ///
+        /// @param inputs_entries Destination vector for inputs entries
+        /// @return Total size of the copied inputs
+        UINT64 CopyBuildInputs (std::vector<AccelerationStructureTracker::InputsEntry>& inputs_entries)
+        {
+            return std::visit ([this, &inputs_entries] (auto& inputs) -> UINT64
+                               {
+                                   using InputsType = std::decay_t<decltype (inputs)>;
+
+                                   // DirectX 12
+                                   if constexpr (std::is_same_v<InputsType, D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS>)
+                                   {
+                                       return 0;
+                                   }
+
+                                   // NVAPI
+                                   else if constexpr (std::is_same_v<InputsType, NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX>)
+                                   {
+                                       if (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
+                                       {
+                                           auto& geo_descs = std::get<std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX>> (this->geometry_descs);
+                                           for (UINT i = 0; i < inputs.numDescs; ++i)
+                                           {
+                                               const NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX& desc = geo_descs[i];
+                                               if (desc.type == NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES_EX)
+                                               {
+                                                   return CopyBLAS (desc.triangles, inputs_entries);
+                                               }
+                                           }
+                                           return 0;
+                                       }
+                                       else if (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
+                                       {
+                                           if (inputs.descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS)
+                                           {
+                                               RAYBENCH_LOG_WARNING_ONCE ("TLAS with array of pointers is not yet supported!");
+                                               return 0;
+                                           }
+                                           else if (inputs.numDescs > 0 && inputs.instanceDescs != 0)
+                                           {
+                                               UINT64 inputs_size = inputs.numDescs * sizeof (D3D12_RAYTRACING_INSTANCE_DESC);
+                                               inputs_entries.emplace_back (
+                                                   AccelerationStructureTracker::InputsEntry {
+                                                       &inputs.instanceDescs,
+                                                       inputs_size,
+                                                       0
+                                                   });
+                                               return inputs_size;
+                                           }
+                                           else
+                                           {
+                                               return 0;
+                                           }
+                                       }
+                                       else
+                                       {
+                                           RAYBENCH_LOG_ERROR ("Unsupported acceleration structure type: {}!", static_cast<int>(inputs.type));
+                                           return 0;
+                                       }
+                                   }
+                                   else
+                                   {
+                                       return 0;
+                                   }
+                               }, this->inputs);
+        }
+
+        // ====================================================================
+
+        /// @brief Create copyback resource for build inputs
+        ///
+        /// @param device Device to create the resource on
+        /// @return True if resource was created successfully, false otherwise
+        bool CreateCopybackResource (ID3D12Device5* device)
+        {
+            ID3D12Resource* resource = nullptr;
+
+            D3D12_HEAP_PROPERTIES heap_properties {};
+            heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+            heap_properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+            heap_properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+            heap_properties.CreationNodeMask = 1;
+            heap_properties.VisibleNodeMask = 1;
+
+            D3D12_RESOURCE_DESC resource_desc {};
+            resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+            resource_desc.Alignment = 0;
+            resource_desc.Width = copyback_size;
+            resource_desc.Height = 1;
+            resource_desc.DepthOrArraySize = 1;
+            resource_desc.MipLevels = 1;
+            resource_desc.Format = DXGI_FORMAT_UNKNOWN;
+            resource_desc.SampleDesc.Count = 1;
+            resource_desc.SampleDesc.Quality = 0;
+            resource_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+            resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+            HRESULT hr = device->CreateCommittedResource (&heap_properties,
+                                                  D3D12_HEAP_FLAG_NONE,
+                                                  &resource_desc,
+                                                  D3D12_RESOURCE_STATE_COPY_DEST,
+                                                  nullptr,
+                                                  IID_PPV_ARGS (&resource));
+            if (FAILED (hr))
+            {
+                RAYBENCH_LOG_ERROR ("Failed to create copyback resource: 0x{:08X}!", hr);
+                return false;
+            }
+            copyback_resource = resource;
+            return true;
+        }
+
+        // --------------------------------------------------------------------
+
+        /// @brief Copy geometry description entries from BLAS build inputs
+        ///
+        /// @param triangles_desc Geometry description
+        /// @param inputs_entries Destination vector for inputs entries
+        /// @return Total size of the copied inputs
+        UINT64 CopyBLAS (const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC& triangles_desc,
+                         std::vector<AccelerationStructureTracker::InputsEntry>& inputs_entries)
+        {
+            UINT64 inputs_size = 0;
+
+            // Transformation matrix
+            if (triangles_desc.Transform3x4)
+            {
+                constexpr UINT64 transform_size = 12 * sizeof (float);
+                inputs_size = raybench::util::AlignValue<D3D12_RAYTRACING_TRANSFORM3X4_BYTE_ALIGNMENT> (inputs_size);
+                inputs_entries.emplace_back (
+                    AccelerationStructureTracker::InputsEntry {
+                    &triangles_desc.Transform3x4,
+                    transform_size,
+                    inputs_size
+                    });
+                inputs_size += transform_size;
+            }
+
+            // Index buffer
+            if (triangles_desc.IndexCount != 0 && triangles_desc.IndexBuffer != 0)
+            {
+                UINT32 index_size = 0;
+                switch (triangles_desc.IndexFormat)
+                {
+                    case DXGI_FORMAT_R32_UINT:
+                        index_size = 4;
+                        inputs_size = raybench::util::AlignValue<4> (inputs_size);
+                        break;
+                    case DXGI_FORMAT_R16_UINT:
+                        index_size = 2;
+                        inputs_size = raybench::util::AlignValue<2> (inputs_size);
+                        break;
+                    default:
+                        RAYBENCH_LOG_ERROR ("Unsupported index format: {}!", static_cast<int>(triangles_desc.IndexFormat));
+                        break;
+                }
+                const UINT index_buffer_size = triangles_desc.IndexCount * index_size;
+                inputs_entries.emplace_back (
+                    AccelerationStructureTracker::InputsEntry {
+                    &triangles_desc.IndexBuffer,
+                    index_buffer_size,
+                    inputs_size
+                    });
+                inputs_size += index_buffer_size;
+            }
+
+            // Vertex buffer
+            if (triangles_desc.VertexCount != 0 && triangles_desc.VertexBuffer.StartAddress != 0)
+            {
+                UINT64 vertex_size = triangles_desc.VertexCount * triangles_desc.VertexBuffer.StrideInBytes;
+                inputs_size = raybench::util::AlignValue<4> (inputs_size);
+                inputs_entries.emplace_back (
+                    AccelerationStructureTracker::InputsEntry {
+                    &triangles_desc.VertexBuffer.StartAddress,
+                    vertex_size,
+                    inputs_size
+                    });
+                inputs_size += vertex_size;
+            }
+
+            return inputs_size;
+        }
     };
 
     // ========================================================================
