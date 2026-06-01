@@ -263,6 +263,165 @@ public:
                         std::visit ([&] (auto& inputs)
                                     {
                                         using InputsType = std::decay_t<decltype(inputs)>;
+                                        
+                                        // Helper lambda to write triangle geometry
+                                        auto write_triangles = [&] (const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC* triangles, UINT geom_idx, UINT64& base_offset)
+                                        {
+                                            if (triangles == nullptr) return;
+                                            
+                                            outfile << "  Geometry " << geom_idx << ":\n";
+
+                                            // Use local offset within this geometry (no alignment needed for disk output)
+                                            UINT64 local_offset = 0;
+
+                                            if (triangles->Transform3x4)
+                                            {
+                                                const float* transform = reinterpret_cast<const float*>(data + base_offset + local_offset);
+                                                outfile << "    Transform:\n";
+                                                for (int row = 0; row < 3; ++row)
+                                                {
+                                                    outfile << "      [ ";
+                                                    for (int col = 0; col < 4; ++col)
+                                                    {
+                                                        outfile << transform[row * 4 + col] << " ";
+                                                    }
+                                                    outfile << "]\n";
+                                                }
+                                                local_offset += 12 * sizeof (float);
+                                            }
+
+                                            if (triangles->IndexCount != 0 && triangles->IndexBuffer != 0)
+                                            {
+                                                UINT32 index_size = (triangles->IndexFormat == DXGI_FORMAT_R32_UINT) ? 4 : 2;
+
+                                                outfile << "    Indices (" << triangles->IndexCount << "):\n      ";
+                                                const uint8_t* index_data = data + base_offset + local_offset;
+                                                for (UINT j = 0; j < triangles->IndexCount; ++j)
+                                                {
+                                                    if (index_size == 4)
+                                                    {
+                                                        outfile << reinterpret_cast<const UINT32*> (index_data)[j] << " ";
+                                                    }
+                                                    else
+                                                    {
+                                                        outfile << reinterpret_cast<const UINT16*> (index_data)[j] << " ";
+                                                    }
+                                                    if ((j + 1) % 30 == 0) outfile << "\n      ";
+                                                }
+                                                if (triangles->IndexCount % 30 != 0) outfile << "\n";
+
+                                                local_offset += triangles->IndexCount * index_size;
+                                            }
+
+                                            if (triangles->VertexCount != 0 && triangles->VertexBuffer.StartAddress != 0)
+                                            {
+                                                outfile << "    Vertices (" << triangles->VertexCount << "):\n";
+                                                outfile << "    VertexFormat: " << triangles->VertexFormat << ", Stride: " << triangles->VertexBuffer.StrideInBytes << "\n";
+
+                                                const uint8_t* vertex_data = data + base_offset + local_offset;
+                                                
+                                                // Debug: show raw bytes for first vertex
+                                                if (triangles->VertexCount > 0)
+                                                {
+                                                    outfile << "    Raw bytes (first vertex): ";
+                                                    for (size_t b = 0; b < std::min((UINT64)16, triangles->VertexBuffer.StrideInBytes); ++b)
+                                                    {
+                                                        outfile << std::hex << std::setw(2) << std::setfill('0') << (int)vertex_data[b] << " ";
+                                                    }
+                                                    outfile << std::dec << "\n";
+                                                }
+                                                
+                                                for (UINT j = 0; j < triangles->VertexCount; ++j)
+                                                {
+                                                    const uint8_t* vertex_ptr = vertex_data + j * triangles->VertexBuffer.StrideInBytes;
+                                                    
+                                                    // Handle different vertex formats
+                                                    float x, y, z;
+                                                    if (triangles->VertexFormat == DXGI_FORMAT_R32G32B32_FLOAT)
+                                                    {
+                                                        const float* vertex = reinterpret_cast<const float*>(vertex_ptr);
+                                                        x = vertex[0];
+                                                        y = vertex[1];
+                                                        z = vertex[2];
+                                                    }
+                                                    else if (triangles->VertexFormat == DXGI_FORMAT_R32G32B32A32_FLOAT)
+                                                    {
+                                                        const float* vertex = reinterpret_cast<const float*>(vertex_ptr);
+                                                        x = vertex[0];
+                                                        y = vertex[1];
+                                                        z = vertex[2];
+                                                        // Ignore w component
+                                                    }
+                                                    else if (triangles->VertexFormat == DXGI_FORMAT_R16G16B16A16_FLOAT)
+                                                    {
+                                                        // Convert half-float to float
+                                                        const uint16_t* vertex = reinterpret_cast<const uint16_t*>(vertex_ptr);
+                                                        // Simple half-float to float conversion
+                                                        auto half_to_float = [](uint16_t h) -> float {
+                                                            uint32_t sign = (h & 0x8000) << 16;
+                                                            uint32_t exponent = (h & 0x7C00) >> 10;
+                                                            uint32_t mantissa = (h & 0x03FF);
+                                                            
+                                                            if (exponent == 0) {
+                                                                if (mantissa == 0) return 0.0f;
+                                                                // Denormalized
+                                                                exponent = 1;
+                                                            } else if (exponent == 31) {
+                                                                // Inf or NaN
+                                                                uint32_t bits = sign | 0x7F800000 | (mantissa << 13);
+                                                                return *reinterpret_cast<float*>(&bits);
+                                                            }
+                                                            
+                                                            uint32_t bits = sign | ((exponent + 112) << 23) | (mantissa << 13);
+                                                            return *reinterpret_cast<float*>(&bits);
+                                                        };
+                                                        
+                                                        x = half_to_float(vertex[0]);
+                                                        y = half_to_float(vertex[1]);
+                                                        z = half_to_float(vertex[2]);
+                                                    }
+                                                    else if (triangles->VertexFormat == DXGI_FORMAT_R16G16B16A16_SNORM)
+                                                    {
+                                                        // Signed normalized 16-bit integers
+                                                        const int16_t* vertex = reinterpret_cast<const int16_t*>(vertex_ptr);
+                                                        // Convert SNORM to float: value / 32767.0, clamped to [-1, 1]
+                                                        auto snorm_to_float = [](int16_t v) -> float {
+                                                            return std::max(v / 32767.0f, -1.0f);
+                                                        };
+                                                        
+                                                        x = snorm_to_float(vertex[0]);
+                                                        y = snorm_to_float(vertex[1]);
+                                                        z = snorm_to_float(vertex[2]);
+                                                    }
+                                                    else if (triangles->VertexFormat == DXGI_FORMAT_R8G8B8A8_SNORM)
+                                                    {
+                                                        // Signed normalized 8-bit integers
+                                                        const int8_t* vertex = reinterpret_cast<const int8_t*>(vertex_ptr);
+                                                        // Convert SNORM to float: value / 127.0, clamped to [-1, 1]
+                                                        auto snorm_to_float = [](int8_t v) -> float {
+                                                            return std::max(v / 127.0f, -1.0f);
+                                                        };
+                                                        
+                                                        x = snorm_to_float(vertex[0]);
+                                                        y = snorm_to_float(vertex[1]);
+                                                        z = snorm_to_float(vertex[2]);
+                                                    }
+                                                    else
+                                                    {
+                                                        outfile << "      v" << j << ": (unsupported format " << triangles->VertexFormat << ")\n";
+                                                        continue;
+                                                    }
+                                                    
+                                                    outfile << "      v" << j << ": (" << x << ", " << y << ", " << z << ")\n";
+                                                }
+
+                                                local_offset += triangles->VertexCount * triangles->VertexBuffer.StrideInBytes;
+                                            }
+                                            
+                                            // Update base offset for next geometry
+                                            base_offset += local_offset;
+                                        };
+                                        
                                         if constexpr (std::is_same_v<InputsType, NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX>)
                                         {
                                             auto& geo_descs = std::get<std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX>> (build_info.geometry_descs);
@@ -283,68 +442,22 @@ public:
                                                 {
                                                     triangles = &desc.dmmTriangles.triangles;
                                                 }
-
-                                                if (triangles != nullptr)
+                                                write_triangles (triangles, i, offset);
+                                            }
+                                        }
+                                        else if constexpr (std::is_same_v<InputsType, D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS>)
+                                        {
+                                            auto& geo_descs = std::get<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>> (build_info.geometry_descs);
+                                            UINT64 offset = 0;
+                                            for (UINT i = 0; i < inputs.NumDescs; ++i)
+                                            {
+                                                const auto& desc = geo_descs[i];
+                                                const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC* triangles = nullptr;
+                                                if (desc.Type == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
                                                 {
-                                                    outfile << "  Geometry " << i << ":\n";
-
-                                                    if (triangles->Transform3x4)
-                                                    {
-                                                        offset = raybench::util::AlignValue<D3D12_RAYTRACING_TRANSFORM3X4_BYTE_ALIGNMENT> (offset);
-                                                        const float* transform = reinterpret_cast<const float*>(data + offset);
-                                                        outfile << "    Transform:\n";
-                                                        for (int row = 0; row < 3; ++row)
-                                                        {
-                                                            outfile << "      [ ";
-                                                            for (int col = 0; col < 4; ++col)
-                                                            {
-                                                                outfile << transform[row * 4 + col] << " ";
-                                                            }
-                                                            outfile << "]\n";
-                                                        }
-                                                        offset += 12 * sizeof (float);
-                                                    }
-
-                                                    if (triangles->IndexCount != 0 && triangles->IndexBuffer != 0)
-                                                    {
-                                                        UINT32 index_size = (triangles->IndexFormat == DXGI_FORMAT_R32_UINT) ? 4 : 2;
-                                                        if (index_size == 4) offset = raybench::util::AlignValue<4> (offset);
-                                                        else offset = raybench::util::AlignValue<2> (offset);
-
-                                                        outfile << "    Indices (" << triangles->IndexCount << "):\n      ";
-                                                        const uint8_t* index_data = data + offset;
-                                                        for (UINT j = 0; j < triangles->IndexCount; ++j)
-                                                        {
-                                                            if (index_size == 4)
-                                                            {
-                                                                outfile << reinterpret_cast<const UINT32*> (index_data)[j] << " ";
-                                                            }
-                                                            else
-                                                            {
-                                                                outfile << reinterpret_cast<const UINT16*> (index_data)[j] << " ";
-                                                            }
-                                                            if ((j + 1) % 30 == 0) outfile << "\n      ";
-                                                        }
-                                                        if (triangles->IndexCount % 30 != 0) outfile << "\n";
-
-                                                        offset += triangles->IndexCount * index_size;
-                                                    }
-
-                                                    if (triangles->VertexCount != 0 && triangles->VertexBuffer.StartAddress != 0)
-                                                    {
-                                                        offset = raybench::util::AlignValue<4> (offset);
-                                                        outfile << "    Vertices (" << triangles->VertexCount << "):\n";
-
-                                                        const uint8_t* vertex_data = data + offset;
-                                                        for (UINT j = 0; j < triangles->VertexCount; ++j)
-                                                        {
-                                                            const float* vertex = reinterpret_cast<const float*> (vertex_data + j * triangles->VertexBuffer.StrideInBytes);
-                                                            outfile << "      v" << j << ": (" << vertex[0] << ", " << vertex[1] << ", " << vertex[2] << ")\n";
-                                                        }
-
-                                                        offset += triangles->VertexCount * triangles->VertexBuffer.StrideInBytes;
-                                                    }
+                                                    triangles = &desc.Triangles;
                                                 }
+                                                write_triangles (triangles, i, offset);
                                             }
                                         }
                                     }, build_info.inputs);
