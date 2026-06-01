@@ -162,11 +162,9 @@ public:
         std::vector<AccelerationStructureTracker::InputsEntry> inputs_entries;
         inputs_size = build_info.CopyBuildInputs (inputs_entries);
 
-        if (inputs_size == 0)
-        {
-            device->Release ();
-            return;
-        }
+        // TODO
+        inputs_size = build_info.dest_size;
+        RAYBENCH_ASSERT (inputs_size >= 0, "FAIL!");
 
         build_info.copyback_size = inputs_size;
 
@@ -303,11 +301,9 @@ public:
         std::vector<AccelerationStructureTracker::InputsEntry> inputs_entries;
         inputs_size = build_info.CopyBuildInputs (inputs_entries);
 
-        if (inputs_size == 0)
-        {
-            device->Release ();
-            return;
-        }
+        // TODO
+        inputs_size = build_info.dest_size;
+        RAYBENCH_ASSERT (inputs_size >= 0, "FAIL!");
 
         build_info.copyback_size = inputs_size;
 

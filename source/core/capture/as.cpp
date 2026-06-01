@@ -174,7 +174,48 @@ public:
                                    // DirectX 12
                                    if constexpr (std::is_same_v<InputsType, D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS>)
                                    {
-                                       return 0;
+                                       if (inputs.Type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
+                                       {
+                                           UINT64 inputs_size = 0;
+                                           auto& geo_descs = std::get<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>> (this->geometry_descs);
+                                           for (UINT i = 0; i < inputs.NumDescs; ++i)
+                                           {
+                                               const D3D12_RAYTRACING_GEOMETRY_DESC& desc = geo_descs[i];
+                                               if (desc.Type == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
+                                               {
+                                                   inputs_size += CopyBLAS (desc.Triangles, inputs_entries, inputs_size);
+                                               }
+                                           }
+                                           return inputs_size;
+                                       }
+                                       else if (inputs.Type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
+                                       {
+                                           if (inputs.DescsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS)
+                                           {
+                                               RAYBENCH_LOG_WARNING_ONCE ("TLAS with array of pointers is not yet supported!");
+                                               return 0;
+                                           }
+                                           else if (inputs.NumDescs > 0 && inputs.InstanceDescs != 0)
+                                           {
+                                               UINT64 inputs_size = inputs.NumDescs * sizeof (D3D12_RAYTRACING_INSTANCE_DESC);
+                                               inputs_entries.emplace_back (
+                                                   AccelerationStructureTracker::InputsEntry {
+                                                       &inputs.InstanceDescs,
+                                                       inputs_size,
+                                                       0
+                                                   });
+                                               return inputs_size;
+                                           }
+                                           else
+                                           {
+                                               return 0;
+                                           }
+                                       }
+                                       else
+                                       {
+                                           RAYBENCH_LOG_ERROR ("Unsupported acceleration structure type: {}!", static_cast<int>(inputs.Type));
+                                           return 0;
+                                       }
                                    }
 
                                    // NVAPI
@@ -182,16 +223,25 @@ public:
                                    {
                                        if (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
                                        {
+                                           UINT64 inputs_size = 0;
                                            auto& geo_descs = std::get<std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX>> (this->geometry_descs);
                                            for (UINT i = 0; i < inputs.numDescs; ++i)
                                            {
                                                const NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX& desc = geo_descs[i];
                                                if (desc.type == NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES_EX)
                                                {
-                                                   return CopyBLAS (desc.triangles, inputs_entries);
+                                                   inputs_size += CopyBLAS (desc.triangles, inputs_entries, inputs_size);
+                                               }
+                                               else if (desc.type == NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES_EX)
+                                               {
+                                                   inputs_size += CopyBLAS (desc.ommTriangles.triangles, inputs_entries, inputs_size);
+                                               }
+                                               else if (desc.type == NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_DMM_TRIANGLES_EX)
+                                               {
+                                                   inputs_size += CopyBLAS (desc.dmmTriangles.triangles, inputs_entries, inputs_size);
                                                }
                                            }
-                                           return 0;
+                                           return inputs_size;
                                        }
                                        else if (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
                                        {
@@ -280,9 +330,11 @@ public:
         ///
         /// @param triangles_desc Geometry description
         /// @param inputs_entries Destination vector for inputs entries
-        /// @return Total size of the copied inputs
+        /// @param offset Base offset in the copyback buffer
+        /// @return Total size of the added inputs
         UINT64 CopyBLAS (const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC& triangles_desc,
-                         std::vector<AccelerationStructureTracker::InputsEntry>& inputs_entries)
+                         std::vector<AccelerationStructureTracker::InputsEntry>& inputs_entries,
+                         UINT64 offset)
         {
             UINT64 inputs_size = 0;
 
@@ -295,7 +347,7 @@ public:
                     AccelerationStructureTracker::InputsEntry {
                     &triangles_desc.Transform3x4,
                     transform_size,
-                    inputs_size
+                    offset + inputs_size
                     });
                 inputs_size += transform_size;
             }
@@ -323,7 +375,7 @@ public:
                     AccelerationStructureTracker::InputsEntry {
                     &triangles_desc.IndexBuffer,
                     index_buffer_size,
-                    inputs_size
+                    offset + inputs_size
                     });
                 inputs_size += index_buffer_size;
             }
@@ -337,7 +389,7 @@ public:
                     AccelerationStructureTracker::InputsEntry {
                     &triangles_desc.VertexBuffer.StartAddress,
                     vertex_size,
-                    inputs_size
+                    offset + inputs_size
                     });
                 inputs_size += vertex_size;
             }
