@@ -192,6 +192,40 @@ public:
             return;
         }
 
+        // Collect all unique source resources and add barriers
+        std::vector<ID3D12Resource*> unique_resources;
+        std::unordered_set<ID3D12Resource*> seen_resources;
+
+        for (const auto& entry : inputs_entries)
+        {
+            if (entry.src_addr == nullptr || *entry.src_addr == 0)
+            {
+                continue;
+            }
+
+            ID3D12Resource* src_resource = nullptr;
+            {
+                std::scoped_lock lock (state_mutex_);
+                src_resource = virtual_address_tracker_.Get (*entry.src_addr, entry.size);
+            }
+
+            if (src_resource != nullptr && seen_resources.find (src_resource) == seen_resources.end ())
+            {
+                unique_resources.push_back (src_resource);
+                seen_resources.insert (src_resource);
+
+                // Transition to COPY_SOURCE state
+                D3D12_RESOURCE_BARRIER barrier {};
+                barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+                barrier.Transition.pResource = src_resource;
+                barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+                barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+                barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+                command_list->ResourceBarrier (1, &barrier);
+            }
+        }
+
         // Stage build inputs copies to copyback buffer to be executed during
         // command list execution
         auto entry_it = inputs_entries.begin ();
@@ -241,6 +275,19 @@ public:
                                                 src_resource, entry_addr - src_start, entry_it->size);
                 ++entry_it;
             }
+        }
+
+        // Transition resources back to COMMON state
+        for (auto* src_resource : unique_resources)
+        {
+            D3D12_RESOURCE_BARRIER barrier {};
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+            barrier.Transition.pResource = src_resource;
+            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
+            command_list->ResourceBarrier (1, &barrier);
         }
 
         {
@@ -334,6 +381,40 @@ public:
             return;
         }
 
+        // Collect all unique source resources and add barriers
+        std::vector<ID3D12Resource*> unique_resources;
+        std::unordered_set<ID3D12Resource*> seen_resources;
+
+        for (const auto& entry : inputs_entries)
+        {
+            if (entry.src_addr == nullptr || *entry.src_addr == 0)
+            {
+                continue;
+            }
+
+            ID3D12Resource* src_resource = nullptr;
+            {
+                std::scoped_lock lock (state_mutex_);
+                src_resource = virtual_address_tracker_.Get (*entry.src_addr, entry.size);
+            }
+
+            if (src_resource != nullptr && seen_resources.find (src_resource) == seen_resources.end ())
+            {
+                unique_resources.push_back (src_resource);
+                seen_resources.insert (src_resource);
+
+                // Transition to COPY_SOURCE state
+                D3D12_RESOURCE_BARRIER barrier {};
+                barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+                barrier.Transition.pResource = src_resource;
+                barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+                barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+                barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+                command_list->ResourceBarrier (1, &barrier);
+            }
+        }
+
         // Stage build inputs copies to copyback buffer to be executed during
         // command list execution
         auto entry_it = inputs_entries.begin ();
@@ -383,6 +464,19 @@ public:
                                                 src_resource, entry_addr - src_start, entry_it->size);
                 ++entry_it;
             }
+        }
+
+        // Transition resources back to COMMON state
+        for (auto* src_resource : unique_resources)
+        {
+            D3D12_RESOURCE_BARRIER barrier {};
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+            barrier.Transition.pResource = src_resource;
+            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
+            command_list->ResourceBarrier (1, &barrier);
         }
 
         {
