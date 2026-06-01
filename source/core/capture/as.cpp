@@ -342,7 +342,6 @@ public:
             if (triangles_desc.Transform3x4)
             {
                 constexpr UINT64 transform_size = 12 * sizeof (float);
-                inputs_size = raybench::util::AlignValue<D3D12_RAYTRACING_TRANSFORM3X4_BYTE_ALIGNMENT> (inputs_size);
                 inputs_entries.emplace_back (
                     AccelerationStructureTracker::InputsEntry {
                     &triangles_desc.Transform3x4,
@@ -360,11 +359,9 @@ public:
                 {
                     case DXGI_FORMAT_R32_UINT:
                         index_size = 4;
-                        inputs_size = raybench::util::AlignValue<4> (inputs_size);
                         break;
                     case DXGI_FORMAT_R16_UINT:
                         index_size = 2;
-                        inputs_size = raybench::util::AlignValue<2> (inputs_size);
                         break;
                     default:
                         RAYBENCH_LOG_ERROR ("Unsupported index format: {}!", static_cast<int>(triangles_desc.IndexFormat));
@@ -384,7 +381,6 @@ public:
             if (triangles_desc.VertexCount != 0 && triangles_desc.VertexBuffer.StartAddress != 0)
             {
                 UINT64 vertex_size = triangles_desc.VertexCount * triangles_desc.VertexBuffer.StrideInBytes;
-                inputs_size = raybench::util::AlignValue<4> (inputs_size);
                 inputs_entries.emplace_back (
                     AccelerationStructureTracker::InputsEntry {
                     &triangles_desc.VertexBuffer.StartAddress,
