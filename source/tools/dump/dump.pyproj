@@ -22,6 +22,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="obj.py" />
     <Compile Include="d3d12.py" />
     <Compile Include="dxgi.py" />
     <Compile Include="nvapi.py" />
