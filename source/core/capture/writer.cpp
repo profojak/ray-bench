@@ -155,6 +155,12 @@ public:
             }
         }
 
+        std::ofstream outfile ("geometry.txt");
+        if (!outfile.is_open ())
+        {
+            RAYBENCH_LOG_ERROR ("Failed to open geometry.txt for writing!");
+        }
+
         for (auto [rb, build_info] : readback_buffers)
         {
             void* mapped_ptr = nullptr;
@@ -172,9 +178,178 @@ public:
                     }
                 }
 
-                if (has_data)
+                if (has_data && outfile.is_open())
                 {
-                    RAYBENCH_LOG_DEBUG ("Readback buffer 0x{:016X} contains data!", reinterpret_cast<uintptr_t> (rb));
+                    bool is_tlas = false;
+                    std::visit ([&] (auto& inputs)
+                                {
+                                    using InputsType = std::decay_t<decltype(inputs)>;
+                                    if constexpr (std::is_same_v<InputsType, D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS>)
+                                    {
+                                        is_tlas = (inputs.Type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL);
+                                    }
+                                    else if constexpr (std::is_same_v<InputsType, NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX>)
+                                    {
+                                        is_tlas = (inputs.type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL);
+                                    }
+                                }, build_info.inputs);
+
+                    outfile << "Acceleration Structure: 0x" << std::hex << build_info.dest_addr << std::dec << "\n";
+                    if (is_tlas)
+                    {
+                        outfile << "Type: TLAS\n";
+                        std::visit ([&] (auto& inputs)
+                                    {
+                                        using InputsType = std::decay_t<decltype(inputs)>;
+                                        if constexpr (std::is_same_v<InputsType, NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX>)
+                                        {
+                                            if (inputs.numDescs > 0 && inputs.instanceDescs != 0)
+                                            {
+                                                outfile << "Instances: " << inputs.numDescs << "\n";
+                                                const D3D12_RAYTRACING_INSTANCE_DESC* instances = reinterpret_cast<const D3D12_RAYTRACING_INSTANCE_DESC*>(data);
+                                                for (UINT i = 0; i < inputs.numDescs; ++i)
+                                                {
+                                                    outfile << "  Instance " << i << ":\n";
+                                                    outfile << "    InstanceID: " << instances[i].InstanceID << "\n";
+                                                    outfile << "    InstanceMask: 0x" << std::hex << static_cast<int> (instances[i].InstanceMask) << std::dec << "\n";
+                                                    outfile << "    InstanceContributionToHitGroupIndex: " << instances[i].InstanceContributionToHitGroupIndex << "\n";
+                                                    outfile << "    Flags: 0x" << std::hex << static_cast<int> (instances[i].Flags) << std::dec << "\n";
+                                                    outfile << "    AccelerationStructure: 0x" << std::hex << instances[i].AccelerationStructure << std::dec << "\n";
+                                                    outfile << "    Transform:\n";
+                                                    for (int row = 0; row < 3; ++row)
+                                                    {
+                                                        outfile << "      [ ";
+                                                        for (int col = 0; col < 4; ++col)
+                                                        {
+                                                            outfile << instances[i].Transform[row][col] << " ";
+                                                        }
+                                                        outfile << "]\n";
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        else if constexpr (std::is_same_v<InputsType, D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS>)
+                                        {
+                                            if (inputs.NumDescs > 0 && inputs.InstanceDescs != 0)
+                                            {
+                                                outfile << "Instances: " << inputs.NumDescs << "\n";
+                                                const D3D12_RAYTRACING_INSTANCE_DESC* instances = reinterpret_cast<const D3D12_RAYTRACING_INSTANCE_DESC*>(data);
+                                                for (UINT i = 0; i < inputs.NumDescs; ++i)
+                                                {
+                                                    outfile << "  Instance " << i << ":\n";
+                                                    outfile << "    InstanceID: " << instances[i].InstanceID << "\n";
+                                                    outfile << "    InstanceMask: 0x" << std::hex << static_cast<int> (instances[i].InstanceMask) << std::dec << "\n";
+                                                    outfile << "    InstanceContributionToHitGroupIndex: " << instances[i].InstanceContributionToHitGroupIndex << "\n";
+                                                    outfile << "    Flags: 0x" << std::hex << static_cast<int> (instances[i].Flags) << std::dec << "\n";
+                                                    outfile << "    AccelerationStructure: 0x" << std::hex << instances[i].AccelerationStructure << std::dec << "\n";
+                                                    outfile << "    Transform:\n";
+                                                    for (int row = 0; row < 3; ++row)
+                                                    {
+                                                        outfile << "      [ ";
+                                                        for (int col = 0; col < 4; ++col)
+                                                        {
+                                                            outfile << instances[i].Transform[row][col] << " ";
+                                                        }
+                                                        outfile << "]\n";
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }, build_info.inputs);
+                    }
+                    else
+                    {
+                        outfile << "Type: BLAS\n";
+                        std::visit ([&] (auto& inputs)
+                                    {
+                                        using InputsType = std::decay_t<decltype(inputs)>;
+                                        if constexpr (std::is_same_v<InputsType, NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX>)
+                                        {
+                                            auto& geo_descs = std::get<std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX>> (build_info.geometry_descs);
+                                            UINT64 offset = 0;
+                                            for (UINT i = 0; i < inputs.numDescs; ++i)
+                                            {
+                                                const auto& desc = geo_descs[i];
+                                                const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC* triangles = nullptr;
+                                                if (desc.type == NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES_EX)
+                                                {
+                                                    triangles = &desc.triangles;
+                                                }
+                                                else if (desc.type == NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES_EX)
+                                                {
+                                                    triangles = &desc.ommTriangles.triangles;
+                                                }
+                                                else if (desc.type == NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_DMM_TRIANGLES_EX)
+                                                {
+                                                    triangles = &desc.dmmTriangles.triangles;
+                                                }
+
+                                                if (triangles != nullptr)
+                                                {
+                                                    outfile << "  Geometry " << i << ":\n";
+
+                                                    if (triangles->Transform3x4)
+                                                    {
+                                                        offset = raybench::util::AlignValue<D3D12_RAYTRACING_TRANSFORM3X4_BYTE_ALIGNMENT> (offset);
+                                                        const float* transform = reinterpret_cast<const float*>(data + offset);
+                                                        outfile << "    Transform:\n";
+                                                        for (int row = 0; row < 3; ++row)
+                                                        {
+                                                            outfile << "      [ ";
+                                                            for (int col = 0; col < 4; ++col)
+                                                            {
+                                                                outfile << transform[row * 4 + col] << " ";
+                                                            }
+                                                            outfile << "]\n";
+                                                        }
+                                                        offset += 12 * sizeof (float);
+                                                    }
+
+                                                    if (triangles->IndexCount != 0 && triangles->IndexBuffer != 0)
+                                                    {
+                                                        UINT32 index_size = (triangles->IndexFormat == DXGI_FORMAT_R32_UINT) ? 4 : 2;
+                                                        if (index_size == 4) offset = raybench::util::AlignValue<4> (offset);
+                                                        else offset = raybench::util::AlignValue<2> (offset);
+
+                                                        outfile << "    Indices (" << triangles->IndexCount << "):\n      ";
+                                                        const uint8_t* index_data = data + offset;
+                                                        for (UINT j = 0; j < triangles->IndexCount; ++j)
+                                                        {
+                                                            if (index_size == 4)
+                                                            {
+                                                                outfile << reinterpret_cast<const UINT32*> (index_data)[j] << " ";
+                                                            }
+                                                            else
+                                                            {
+                                                                outfile << reinterpret_cast<const UINT16*> (index_data)[j] << " ";
+                                                            }
+                                                            if ((j + 1) % 30 == 0) outfile << "\n      ";
+                                                        }
+                                                        if (triangles->IndexCount % 30 != 0) outfile << "\n";
+
+                                                        offset += triangles->IndexCount * index_size;
+                                                    }
+
+                                                    if (triangles->VertexCount != 0 && triangles->VertexBuffer.StartAddress != 0)
+                                                    {
+                                                        offset = raybench::util::AlignValue<4> (offset);
+                                                        outfile << "    Vertices (" << triangles->VertexCount << "):\n";
+
+                                                        const uint8_t* vertex_data = data + offset;
+                                                        for (UINT j = 0; j < triangles->VertexCount; ++j)
+                                                        {
+                                                            const float* vertex = reinterpret_cast<const float*> (vertex_data + j * triangles->VertexBuffer.StrideInBytes);
+                                                            outfile << "      v" << j << ": (" << vertex[0] << ", " << vertex[1] << ", " << vertex[2] << ")\n";
+                                                        }
+
+                                                        offset += triangles->VertexCount * triangles->VertexBuffer.StrideInBytes;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }, build_info.inputs);
+                    }
+                    outfile << "\n";
                 }
                 else
                 {
@@ -185,6 +360,11 @@ public:
             }
 
             rb->Release ();
+        }
+
+        if (outfile.is_open ())
+        {
+            outfile.close ();
         }
 
         command_list->Release ();
